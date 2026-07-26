@@ -717,12 +717,12 @@ modeMenu.querySelectorAll('button').forEach(btn => {
     modeMenu.classList.remove('show');
     pickedFile = null;
     if(currentMode === 'image'){
-      modeIndicatorText.textContent = '🖼️ Mode: Generate Gambar';
+      modeIndicatorText.textContent = 'Mode: Generate Gambar';
       chatInput.placeholder = 'Deskripsikan gambar yang mau dibuat...';
       modeIndicator.classList.add('show');
       filePickChip.classList.remove('show');
     } else if(currentMode === 'editPhoto'){
-      modeIndicatorText.textContent = '🖌️ Mode: Edit Foto';
+      modeIndicatorText.textContent = 'Mode: Edit Foto';
       chatInput.placeholder = 'Instruksi edit foto...';
       modeIndicator.classList.add('show');
       filePickChip.classList.add('show');
