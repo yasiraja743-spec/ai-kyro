@@ -364,7 +364,7 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
    2. API ENDPOINTS
    ========================================================= */
 const API = {
-  chat: (q) => `https://api.ikyyxd.my.id/ai/gpt-5-mini?question=${encodeURIComponent(q)}`,
+  chat: (q) => `https://api.ikyyxd.my.id/ai/qwen?prompt=${encodeURIComponent(q)}`,
   image: (t) => `https://api.ikyyxd.my.id/ai/gptimage?text=${encodeURIComponent(t)}`,
   editPhoto: (prompt, url) => `https://api.ikyyxd.my.id/edit/nanobananav3?prompt=${encodeURIComponent(prompt)}&url=${encodeURIComponent(url)}`,
   upload: `https://api.nexray.eu.cc/upload`
