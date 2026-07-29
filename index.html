@@ -936,10 +936,15 @@ async function sendChat(q){
     let answer;
     try{
       const data = JSON.parse(rawText);
-      answer = data.result || 'Maaf, tidak ada jawaban.';
+      if(data && data.result && typeof data.result === 'object'){
+        answer = data.result.response || 'Maaf, tidak ada jawaban.';
+      } else {
+        answer = data.result || 'Maaf, tidak ada jawaban.';
+      }
     } catch(parseErr){
       console.warn('JSON parse gagal, coba fallback regex. Raw response:', rawText);
-      const match = rawText.match(/"result"\s*:\s*"([\s\S]*)"\s*\}\s*$/);
+      const match = rawText.match(/"response"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"[^"]+"\s*:|\})/) ||
+                    rawText.match(/"result"\s*:\s*"([\s\S]*)"\s*\}\s*$/);
       if(match){ answer = match[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\\\/g,'\\'); }
       else { throw parseErr; }
     }
