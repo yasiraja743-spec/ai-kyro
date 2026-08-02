@@ -810,6 +810,7 @@ function createNewConversation(closeSidebarAfter){
 document.getElementById('newChatBtn').addEventListener('click', () => createNewConversation(true));
 
 function getActiveConv(){ return conversations.find(c => c.id === activeConvId); }
+function getConvById(id){ return conversations.find(c => c.id === id); }
 
 function renderHistoryList(){
   const list = document.getElementById('historyList');
@@ -889,8 +890,12 @@ function renderActiveConversation(){
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function persistMessage(role, text, type){
-  const conv = getActiveConv();
+// PENTING: convId dikirim eksplisit dari pemanggilnya (di-capture pas pesan mulai dikirim),
+// BUKAN dari activeConvId saat ini — soalnya user bisa aja udah pindah ke obrolan lain
+// sebelum jawaban AI-nya selesai, dan jawabannya harus tetap nyantol ke obrolan asalnya, bukan
+// ke obrolan yang lagi dibuka sekarang.
+function persistMessage(convId, role, text, type){
+  const conv = getConvById(convId);
   if(!conv) return;
   const msgObj = type === 'image' ? { role, type:'image', src:text } : { role, type:'text', text };
   conv.messages.push(msgObj);
@@ -1222,8 +1227,9 @@ function buildPlainContext(conv, newQuestion){
 }
 
 async function sendChat(q){
+  const targetConvId = activeConvId; // catat obrolan tujuan SEKARANG, sebelum nunggu jawaban AI
   addMsg(q, 'user');
-  const conv = getActiveConv();
+  const conv = getConvById(targetConvId);
   let apiUrl;
   if(currentModel === 'claude'){
     const plainPrompt = buildPlainContext(conv, q);
@@ -1232,7 +1238,7 @@ async function sendChat(q){
     const promptWithContext = buildPromptWithContext(conv, q);
     apiUrl = API.chat(promptWithContext) + `&_ts=${Date.now()}`;
   }
-  persistMessage('user', q);
+  persistMessage(targetConvId, 'user', q);
   const loadingDiv = addTypingBubble();
   try{
     const res = await fetch(apiUrl, { cache: 'no-store' });
@@ -1247,34 +1253,46 @@ async function sendChat(q){
       if(match){ answer = match[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\\\/g,'\\'); }
       else { throw parseErr; }
     }
-    await revealText(loadingDiv, answer);
-    persistMessage('ai', answer);
+    // cuma mainin animasi ngetik kalau user masih/udah balik ke obrolan yang sama;
+    // kalau udah pindah ke obrolan lain, langsung simpen datanya diam-diam tanpa animasi
+    if(targetConvId === activeConvId){
+      await revealText(loadingDiv, answer);
+    }
+    persistMessage(targetConvId, 'ai', answer);
   } catch(e){
     console.error('chat error:', e);
-    loadingDiv.innerHTML = '';
-    loadingDiv.textContent = 'Gagal menghubungi AI. Coba lagi ya.';
+    if(targetConvId === activeConvId){
+      loadingDiv.innerHTML = '';
+      loadingDiv.textContent = 'Gagal menghubungi AI. Coba lagi ya.';
+    }
   }
 }
 
 async function sendImageMessage(prompt){
+  const targetConvId = activeConvId;
   addMsg('[Gambar] ' + prompt, 'user');
-  persistMessage('user', '[Gambar] ' + prompt);
+  persistMessage(targetConvId, 'user', '[Gambar] ' + prompt);
   const loadingDiv = addTypingBubble();
   const url = API.image(prompt) + `&_ts=${Date.now()}`;
   const img = new Image();
   img.onload = () => {
-    loadingDiv.innerHTML = '';
-    loadingDiv.appendChild(buildImageBubble(url));
-    followScroll();
-    persistMessage('ai', url, 'image');
+    if(targetConvId === activeConvId){
+      loadingDiv.innerHTML = '';
+      loadingDiv.appendChild(buildImageBubble(url));
+      followScroll();
+    }
+    persistMessage(targetConvId, 'ai', url, 'image');
   };
-  img.onerror = () => { loadingDiv.textContent = 'Gagal membuat gambar. Coba lagi ya.'; };
+  img.onerror = () => {
+    if(targetConvId === activeConvId){ loadingDiv.textContent = 'Gagal membuat gambar. Coba lagi ya.'; }
+  };
   img.src = url;
 }
 
 async function sendEditPhotoMessage(prompt, file){
+  const targetConvId = activeConvId;
   addMsg('[Edit Foto] ' + prompt, 'user');
-  persistMessage('user', '[Edit Foto] ' + prompt);
+  persistMessage(targetConvId, 'user', '[Edit Foto] ' + prompt);
   const loadingDiv = addTypingBubble();
   loadingDiv.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div><span style="font-size:12.5px;color:var(--muted);margin-left:8px;">Upload & proses (bisa 30 detik)...</span>';
 
@@ -1290,8 +1308,10 @@ async function sendEditPhotoMessage(prompt, file){
     photoUrl = uploadData.result.url;
   } catch(e){
     console.error('upload error:', e);
-    loadingDiv.innerHTML = '';
-    loadingDiv.textContent = 'Upload foto gagal (server penyimpanan lagi bermasalah). Coba lagi.';
+    if(targetConvId === activeConvId){
+      loadingDiv.innerHTML = '';
+      loadingDiv.textContent = 'Upload foto gagal (server penyimpanan lagi bermasalah). Coba lagi.';
+    }
     return;
   }
 
@@ -1305,17 +1325,22 @@ async function sendEditPhotoMessage(prompt, file){
     const resultUrl = editData.result.result_url;
     const img = new Image();
     img.onload = () => {
-      loadingDiv.innerHTML = '';
-      loadingDiv.appendChild(buildImageBubble(resultUrl));
-      followScroll();
-      persistMessage('ai', resultUrl, 'image');
+      if(targetConvId === activeConvId){
+        loadingDiv.innerHTML = '';
+        loadingDiv.appendChild(buildImageBubble(resultUrl));
+        followScroll();
+      }
+      persistMessage(targetConvId, 'ai', resultUrl, 'image');
     };
-    img.onerror = () => { loadingDiv.innerHTML = ''; loadingDiv.textContent = 'Gambar hasil edit gagal dimuat.'; };
+    img.onerror = () => {
+      if(targetConvId === activeConvId){ loadingDiv.innerHTML = ''; loadingDiv.textContent = 'Gambar hasil edit gagal dimuat.'; }
+    };
     img.src = resultUrl;
   } catch(e){
     console.error('edit error:', e);
-    loadingDiv.innerHTML = '';
-    loadingDiv.innerHTML = `Proses edit gagal atau API sedang lambat/timeout.<br><a href="${editUrl}" target="_blank" style="color:var(--accent);">Buka link API ini langsung</a> buat cek pesan errornya.`;
+    if(targetConvId === activeConvId){
+      loadingDiv.innerHTML = `Proses edit gagal atau API sedang lambat/timeout.<br><a href="${editUrl}" target="_blank" style="color:var(--accent);">Buka link API ini langsung</a> buat cek pesan errornya.`;
+    }
   }
 }
 </script>
