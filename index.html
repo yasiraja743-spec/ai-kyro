@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOVA — Asisten AI</title>
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" type="image/jpeg" href="https://api.nexray.eu.cc/LojrOb.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -165,7 +165,10 @@
   .code-tabs{ display:flex; gap:4px; }
   .code-tab{ background:none; border:none; color:var(--muted); font-size:11.5px; font-weight:600; padding:5px 11px; border-radius:6px; cursor:pointer; font-family:'Inter'; }
   .code-tab.active{ background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(20,40,80,0.08); }
-  .code-lang{ font-family:'JetBrains Mono'; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+  .code-lang{ font-family:'JetBrains Mono'; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dl-file-btn{ background:none; border:1px solid var(--border); color:var(--muted); padding:4px 6px; border-radius:6px; cursor:pointer; display:flex; align-items:center; }
+  .dl-file-btn:hover{ color: var(--accent); border-color: var(--accent); }
+  .code-view pre .hljs{ background:none !important; }
   .copy-btn{ background:none; border:1px solid var(--border); color:var(--muted); font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-family:'Inter'; }
   .copy-btn:hover{ color: var(--accent); border-color: var(--accent); }
   .code-view{ max-height:320px; overflow:auto; }
@@ -368,7 +371,7 @@
             <button id="modelBtn"><span id="modelBtnLabel">Nova AI</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
-            <textarea id="chatInput" placeholder="Tulis pesan... (Enter kirim, Shift+Enter baris baru)" rows="1"></textarea>
+            <textarea id="chatInput" placeholder="Tulis pesan..." rows="1"></textarea>
             <button class="btn-primary" id="chatSendBtn">Kirim</button>
           </div>
         </div>
@@ -379,6 +382,9 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
 <script>
 /* =========================================================
@@ -395,6 +401,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = firebase.firestore();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 
 /* =========================================================
@@ -419,10 +426,31 @@ function escapeAttr(str){
   return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 let codeBlockId = 0;
+
+// map ekstensi file -> nama bahasa buat highlight.js
+const EXT_LANG_MAP = {
+  html:'xml', htm:'xml', css:'css', js:'javascript', jsx:'javascript', ts:'typescript', tsx:'typescript',
+  json:'json', py:'python', php:'php', java:'java', c:'c', cpp:'cpp', cs:'csharp', sh:'bash', bash:'bash',
+  md:'markdown', xml:'xml', sql:'sql', rb:'ruby', go:'go', rs:'rust', yml:'yaml', yaml:'yaml', txt:'plaintext'
+};
+
+function highlightCode(code, lang){
+  try{
+    if(lang && typeof hljs !== 'undefined' && hljs.getLanguage(lang)){
+      return hljs.highlight(code, { language: lang }).value;
+    }
+    if(typeof hljs !== 'undefined'){
+      return hljs.highlightAuto(code).value;
+    }
+  } catch(e){ /* fallback di bawah */ }
+  return escapeHtml(code);
+}
+
 function buildCodeBlockHtml(code, language){
   const id = 'code-' + (codeBlockId++);
-  const lang = (language || 'text').trim().toLowerCase();
+  const lang = (language || '').trim().toLowerCase();
   const label = lang ? lang.toUpperCase() : 'TEXT';
+  const hljsLang = EXT_LANG_MAP[lang] || lang;
   const isPreviewable = lang === 'html' || lang === 'htm' || /<!doctype html|<html[\s>]/i.test(code);
   const previewTabBtn = isPreviewable ? `<button class="code-tab" data-mode="preview" data-target="${id}">Tampilan</button>` : '';
   const previewPane = isPreviewable ? `<div class="preview-view" id="${id}-preview" style="display:none;"><iframe sandbox="allow-scripts allow-modals" srcdoc="${escapeAttr(code)}"></iframe></div>` : '';
@@ -437,7 +465,40 @@ function buildCodeBlockHtml(code, language){
         <button class="copy-btn" data-target="${id}">Salin</button>
       </div>
     </div>
-    <div class="code-view" id="${id}-code"><pre><code>${escapeHtml(code)}</code></pre></div>
+    <div class="code-view" id="${id}-code"><pre><code class="hljs">${highlightCode(code, hljsLang)}</code></pre></div>
+    ${previewPane}
+  </div>`;
+}
+
+function getFileExt(filename){
+  const parts = filename.trim().split('.');
+  return parts.length > 1 ? parts.pop().toLowerCase() : '';
+}
+
+// kartu file buat format [package]namafile\nkode\n[/package] — ada tab Kode/Pratinjau + tombol Unduh
+function buildFileCardHtml(filename, code){
+  const id = 'file-' + (codeBlockId++);
+  const ext = getFileExt(filename);
+  const hljsLang = EXT_LANG_MAP[ext] || ext;
+  const isPreviewable = ext === 'html' || ext === 'htm';
+  const previewTabBtn = isPreviewable ? `<button class="code-tab" data-mode="preview" data-target="${id}">Pratinjau</button>` : '';
+  const previewPane = isPreviewable ? `<div class="preview-view" id="${id}-preview" style="display:none;"><iframe sandbox="allow-scripts allow-modals" srcdoc="${escapeAttr(code)}"></iframe></div>` : '';
+  const codeB64 = btoa(unescape(encodeURIComponent(code)));
+  return `<div class="code-block">
+    <div class="code-header">
+      <div class="code-tabs">
+        <button class="code-tab active" data-mode="code" data-target="${id}">Kode</button>
+        ${previewTabBtn}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="code-lang" title="${escapeAttr(filename)}">${escapeHtml(filename)}</span>
+        <button class="dl-file-btn" data-b64="${codeB64}" data-filename="${escapeAttr(filename)}" title="Unduh file">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <button class="copy-btn" data-target="${id}">Salin</button>
+      </div>
+    </div>
+    <div class="code-view" id="${id}-code"><pre><code class="hljs">${highlightCode(code, hljsLang)}</code></pre></div>
     ${previewPane}
   </div>`;
 }
@@ -447,8 +508,17 @@ function buildCodeBlockHtml(code, language){
 function renderMarkdown(raw){
   if(!raw) return '';
   const codeBlocks = [];
-  // 1. tarik keluar dulu semua fenced code block ```lang ... ``` biar aman dari parsing lain
-  let text = raw.replace(/```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+  let text = raw;
+
+  // 1a. tarik keluar format [package]namafile\nkode\n[/package] — jadi kartu file (kode + unduh + pratinjau)
+  text = text.replace(/\[package\]\s*([^\n]+)\n([\s\S]*?)\[\/package\]/gi, (match, filename, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(buildFileCardHtml(filename.trim(), code.replace(/\n$/, '')));
+    return `\n%%CODEBLOCK_${idx}%%\n`;
+  });
+
+  // 1b. tarik keluar fenced code block ```lang ... ``` biar aman dari parsing lain
+  text = text.replace(/```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g, (match, lang, code) => {
     const idx = codeBlocks.length;
     codeBlocks.push(buildCodeBlockHtml(code.replace(/\n$/, ''), lang));
     return `\n%%CODEBLOCK_${idx}%%\n`;
@@ -489,6 +559,26 @@ function renderMarkdown(raw){
 }
 
 document.addEventListener('click', async (e) => {
+  const dlBtn = e.target.closest('.dl-file-btn');
+  if(dlBtn){
+    try{
+      const b64 = dlBtn.dataset.b64;
+      const filename = dlBtn.dataset.filename || 'file.txt';
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++){ bytes[i] = binary.charCodeAt(i); }
+      const blob = new Blob([bytes], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch(err){ console.error('gagal unduh file:', err); }
+    return;
+  }
   const copyBtn = e.target.closest('.copy-btn');
   if(copyBtn){
     const codeEl = document.getElementById(copyBtn.dataset.target)?.querySelector('code') || document.getElementById(copyBtn.dataset.target);
@@ -656,7 +746,8 @@ document.getElementById('closeSidebarBtn').addEventListener('click', closeSideba
 sidebarOverlay.addEventListener('click', closeSidebar);
 
 /* =========================================================
-   7. RIWAYAT OBROLAN (localStorage per akun)
+   7. RIWAYAT OBROLAN — Firestore (cloud, sync lintas device/app)
+   + localStorage sebagai cache biar tetap jalan pas offline
    ========================================================= */
 let conversations = [];
 let activeConvId = null;
@@ -671,16 +762,39 @@ function loadConversationsFromStorage(uid){
 function saveConversationsToStorage(uid){
   try{ localStorage.setItem(storageKey(uid), JSON.stringify(conversations)); } catch(e){}
 }
+// kirim 1 obrolan ke Firestore di background (fire-and-forget) — kalau offline, ini bakal gagal diam-diam
+// dan tetap aman karena cache lokal (localStorage) udah lebih dulu kesimpen di atas
+function syncConversationToCloud(conv){
+  if(!currentUid) return;
+  db.collection('users').doc(currentUid).collection('conversations').doc(conv.id).set(conv)
+    .catch(e => console.warn('Gagal sync obrolan ke cloud (mungkin lagi offline):', e));
+}
 
-function initHistoryForUser(uid){
+async function initHistoryForUser(uid){
+  // munculin dulu dari cache lokal biar instan & tetap jalan walau offline
   conversations = loadConversationsFromStorage(uid);
-  if(conversations.length === 0){
-    createNewConversation(false);
-  } else {
+  if(conversations.length > 0){
     activeConvId = conversations[0].id;
+    renderHistoryList();
+    renderActiveConversation();
   }
-  renderHistoryList();
-  renderActiveConversation();
+  // lalu sinkron dari Firestore (cloud) — biar riwayat sama persis di semua app/device (APK, Chrome, dll)
+  try{
+    const snapshot = await db.collection('users').doc(uid).collection('conversations').orderBy('updatedAt','desc').get();
+    const cloudConvs = snapshot.docs.map(doc => doc.data());
+    if(cloudConvs.length > 0){
+      conversations = cloudConvs;
+      activeConvId = conversations[0].id;
+      saveConversationsToStorage(uid);
+      renderHistoryList();
+      renderActiveConversation();
+    } else if(conversations.length === 0){
+      createNewConversation(false);
+    }
+  } catch(e){
+    console.warn('Gagal sinkron riwayat dari cloud (mungkin lagi offline), pakai cache lokal:', e);
+    if(conversations.length === 0){ createNewConversation(false); }
+  }
 }
 
 function createNewConversation(closeSidebarAfter){
@@ -688,6 +802,7 @@ function createNewConversation(closeSidebarAfter){
   conversations.unshift(conv);
   activeConvId = conv.id;
   saveConversationsToStorage(currentUid);
+  syncConversationToCloud(conv);
   renderHistoryList();
   renderActiveConversation();
   if(closeSidebarAfter) closeSidebar();
@@ -727,9 +842,18 @@ function deleteConversation(id){
   conversations = conversations.filter(c => c.id !== id);
   if(activeConvId === id){
     if(conversations.length > 0){ activeConvId = conversations[0].id; }
-    else { createNewConversation(false); return; }
+    else {
+      saveConversationsToStorage(currentUid);
+      if(currentUid){ db.collection('users').doc(currentUid).collection('conversations').doc(id).delete().catch(()=>{}); }
+      createNewConversation(false);
+      return;
+    }
   }
   saveConversationsToStorage(currentUid);
+  if(currentUid){
+    db.collection('users').doc(currentUid).collection('conversations').doc(id).delete()
+      .catch(e => console.warn('Gagal hapus obrolan di cloud:', e));
+  }
   renderHistoryList();
   renderActiveConversation();
 }
@@ -775,6 +899,7 @@ function persistMessage(role, text, type){
     conv.title = text.length > 42 ? text.slice(0,42) + '…' : text;
   }
   saveConversationsToStorage(currentUid);
+  syncConversationToCloud(conv);
   renderHistoryList();
 }
 
@@ -860,16 +985,49 @@ function addTypingBubble(){
 }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
+// pecah teks jadi urutan segmen: teks biasa (diketik kata per kata) dan blok kode/[package] (tampil utuh sekaligus)
+function splitIntoRevealSegments(text){
+  const regex = /(\[package\]\s*[^\n]+\n[\s\S]*?\[\/package\]|```[a-zA-Z0-9]*\n?[\s\S]*?```)/gi;
+  const segments = [];
+  let lastIndex = 0;
+  let match;
+  while((match = regex.exec(text)) !== null){
+    if(match.index > lastIndex){
+      segments.push({ type:'text', content: text.slice(lastIndex, match.index) });
+    }
+    segments.push({ type:'block', content: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+  if(lastIndex < text.length){
+    segments.push({ type:'text', content: text.slice(lastIndex) });
+  }
+  return segments;
+}
+
 async function revealText(div, text){
   div.innerHTML = '';
-  const words = text.split(' ');
-  const perWord = Math.max(6, Math.min(35, 1800 / words.length));
-  let shown = '';
-  for(const w of words){
-    shown += (shown ? ' ' : '') + w;
-    try{ div.innerHTML = renderMarkdown(shown); } catch(err){ div.textContent = shown; }
-    followScroll();
-    await sleep(perWord);
+  const segments = splitIntoRevealSegments(text);
+  let accumulated = '';
+  for(const seg of segments){
+    if(seg.type === 'block'){
+      // blok kode/[package] ditampilin utuh sekaligus (bukan diketik parsial),
+      // biar nggak kelihatan kode setengah jadi / rusak pas lagi "diketik"
+      accumulated += seg.content;
+      try{ div.innerHTML = renderMarkdown(accumulated); } catch(err){ div.textContent = accumulated; }
+      followScroll();
+      await sleep(120);
+    } else {
+      const words = seg.content.split(' ').filter(w => w !== '');
+      const perWord = Math.max(6, Math.min(35, 1800 / Math.max(words.length, 1)));
+      let shown = '';
+      for(const w of words){
+        shown += (shown ? ' ' : '') + w;
+        try{ div.innerHTML = renderMarkdown(accumulated + shown); } catch(err){ div.textContent = accumulated + shown; }
+        followScroll();
+        await sleep(perWord);
+      }
+      accumulated += seg.content;
+    }
   }
   try{ div.innerHTML = renderMarkdown(text); } catch(err){ div.textContent = text; }
   followScroll();
@@ -917,7 +1075,7 @@ document.getElementById('modeCancelBtn').addEventListener('click', resetMode);
 function resetMode(){
   currentMode = 'chat';
   pickedFile = null;
-  chatInput.placeholder = 'Tulis pesan... (Enter kirim, Shift+Enter baris baru)';
+  chatInput.placeholder = 'Tulis pesan...';
   modeIndicator.classList.remove('show');
   filePickChip.classList.remove('show');
 }
@@ -958,12 +1116,14 @@ modelMenu.querySelectorAll('button').forEach(btn => {
    10. KIRIM PESAN (routing sesuai mode aktif)
    ========================================================= */
 document.getElementById('chatSendBtn').addEventListener('click', handleSend);
+// Enter selalu bikin baris baru (default textarea) — ini penting biar konsisten di keyboard Android/iOS
+// yang kadang nggak ngirim event Shift dengan benar. Kirim pesan cuma lewat tombol "Kirim",
+// atau Ctrl+Enter / Cmd+Enter buat shortcut di desktop.
 chatInput.addEventListener('keydown', (e) => {
-  if(e.key === 'Enter' && !e.shiftKey){
+  if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
     e.preventDefault();
     handleSend();
   }
-  // Shift+Enter: biarkan default (baris baru di textarea)
 });
 chatInput.addEventListener('input', () => {
   chatInput.style.height = 'auto';
@@ -1012,6 +1172,16 @@ Nama kamu: Nova AI v1.0. Pembuat/pengembang kamu: Kyro.
 - Selain soal identitas, jawab pertanyaan user seperti biasa, natural, dan membantu.
 [AKHIR ATURAN IDENTITAS]`;
 
+const CODE_FORMAT_INSTRUCTION = `[ATURAN FORMAT KODE - WAJIB DIPATUHI, JANGAN DITULIS ULANG KE USER]
+- Kalau user minta kode/file lengkap (misal: buatkan halaman HTML, buatkan script Python, dsb), BUNGKUS kodenya persis dengan format ini (bukan triple backtick biasa):
+[package]namafile.ekstensi
+isi kode lengkap di sini
+[/package]
+- Ganti "namafile.ekstensi" dengan nama file yang sesuai isi kode (contoh: index.html, style.css, script.js, main.py). Ekstensi WAJIB sesuai bahasa kodenya.
+- Kalau ada beberapa file berbeda dalam 1 jawaban (misal HTML+CSS+JS terpisah), buat blok [package]...[/package] terpisah untuk tiap file, masing-masing dengan namafile sendiri.
+- Untuk potongan kode singkat/contoh kecil (bukan file utuh), boleh tetap pakai format biasa (triple backtick).
+[AKHIR ATURAN FORMAT KODE]`;
+
 function truncateForContext(text, maxLen){
   if(!text) return '';
   return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
@@ -1021,7 +1191,7 @@ function truncateForContext(text, maxLen){
 // karena API chat ini stateless (cuma terima 1 parameter question tiap request).
 // instruksi identitas diulang di awal DAN akhir prompt biar lebih nempel ke jawaban (recency bias LLM).
 function buildPromptWithContext(conv, newQuestion){
-  let prompt = NOVA_IDENTITY;
+  let prompt = NOVA_IDENTITY + '\n\n' + CODE_FORMAT_INSTRUCTION;
   const historyMsgs = (conv ? conv.messages : []).filter(m => m.type !== 'image').slice(-8);
   if(historyMsgs.length > 0){
     let historyText = '';
@@ -1031,20 +1201,24 @@ function buildPromptWithContext(conv, newQuestion){
     }
     prompt += `\n\nRiwayat percakapan sebelumnya (buat konteks, jangan diulang-ulang, cukup dipakai buat nyambung):\n${historyText}`;
   }
-  prompt += `\n\nIngat: kalau ditanya identitas, kamu Nova AI v1.0 buatan Kyro, bukan model AI lain.\nUser: ${newQuestion}\nNova (jawab langsung, tanpa mengulang instruksi di atas):`;
+  prompt += `\n\nIngat: kalau ditanya identitas, kamu Nova AI v1.0 buatan Kyro, bukan model AI lain. Kalau ngasih kode/file lengkap, pakai format [package]namafile[/package] seperti diinstruksikan di atas.\nUser: ${newQuestion}\nNova (jawab langsung, tanpa mengulang instruksi di atas):`;
   return prompt;
 }
 
-// versi konteks polos (tanpa paksa identitas) buat model Claude Haiku
+// versi konteks polos (tanpa paksa identitas) buat model Claude Haiku — tapi format kode [package] tetap dipakai
 function buildPlainContext(conv, newQuestion){
+  let prompt = CODE_FORMAT_INSTRUCTION + '\n\n';
   const historyMsgs = (conv ? conv.messages : []).filter(m => m.type !== 'image').slice(-8);
-  if(historyMsgs.length === 0) return newQuestion;
-  let historyText = '';
-  for(const m of historyMsgs){
-    const speaker = m.role === 'user' ? 'User' : 'Assistant';
-    historyText += `${speaker}: ${truncateForContext(m.text, 300)}\n`;
+  if(historyMsgs.length > 0){
+    let historyText = '';
+    for(const m of historyMsgs){
+      const speaker = m.role === 'user' ? 'User' : 'Assistant';
+      historyText += `${speaker}: ${truncateForContext(m.text, 300)}\n`;
+    }
+    prompt += `Riwayat percakapan sebelumnya (buat konteks):\n${historyText}\n`;
   }
-  return `Riwayat percakapan sebelumnya (buat konteks):\n${historyText}\nUser: ${newQuestion}`;
+  prompt += `User: ${newQuestion}`;
+  return prompt;
 }
 
 async function sendChat(q){
