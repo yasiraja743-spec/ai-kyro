@@ -134,6 +134,15 @@
   @keyframes msgIn{ from{ opacity:0; transform: translateY(6px); } to{ opacity:1; transform: translateY(0); } }
   .msg.user{ align-self:flex-end; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border-bottom-right-radius:3px; }
   .msg.ai{ align-self:flex-start; background: var(--surface); border:1px solid var(--border); border-bottom-left-radius:3px; box-shadow: 0 2px 10px rgba(20,40,80,0.04); }
+
+  .msg-row{ display:flex; flex-direction:column; max-width:82%; }
+  .msg-row.user{ align-self:flex-end; align-items:flex-end; }
+  .msg-row.ai{ align-self:flex-start; align-items:flex-start; }
+  .msg-row .msg{ max-width:100%; }
+  .msg-actions{ display:flex; gap:2px; margin-top:3px; opacity:0; transition:opacity .15s; min-height:22px; }
+  .msg-row:hover .msg-actions, .msg-actions.force-show{ opacity:1; }
+  .msg-action-btn{ background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; border-radius:6px; display:flex; align-items:center; justify-content:center; }
+  .msg-action-btn:hover{ background: var(--surface-2); color: var(--accent); }
   .msg.ai p{ margin-bottom:8px; }
   .msg.ai p:last-child{ margin-bottom:0; }
   .msg.ai ul, .msg.ai ol{ padding-left:20px; margin-bottom:8px; }
@@ -283,6 +292,10 @@
     <div id="historyList"><div class="history-empty">Belum ada obrolan</div></div>
     <div class="sidebar-bottom">
       <button id="newChatBtn">+ Obrolan Baru</button>
+      <button id="apiKeyBtn" style="width:100%; background:none; border:1px solid var(--border); color:var(--muted); padding:9px; border-radius:9px; cursor:pointer; font-size:12.5px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+        API Key
+      </button>
       <div class="sidebar-user">
         <span id="userLabel"></span>
         <button class="btn-ghost" id="logoutBtn">Keluar</button>
@@ -376,6 +389,27 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL API KEY -->
+<div id="apiKeyModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.45); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; max-width:440px; width:100%; padding:26px; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+      <h2 style="font-family:'Space Grotesk'; font-size:19px; font-weight:700;">API Key kamu</h2>
+      <button id="apiKeyCloseBtn" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Pakai key ini buat manggil Nova AI dari bot WA/Telegram kamu sendiri. Jangan share ke orang lain.</p>
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <input type="text" id="apiKeyDisplay" readonly style="flex:1; background:var(--surface-2); border:1px solid var(--border); padding:10px 12px; border-radius:8px; font-family:'JetBrains Mono'; font-size:12.5px; color:var(--text);">
+      <button id="apiKeyCopyBtn" class="btn-ghost" style="flex-shrink:0;">Salin</button>
+    </div>
+    <button id="apiKeyRegenBtn" style="background:none; border:1px solid var(--border); color:var(--accent); padding:9px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; margin-bottom:18px;">Generate Ulang Key</button>
+    <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Contoh pemakaian (endpoint)</div>
+      <code id="apiKeyEndpointExample" style="display:block; font-family:'JetBrains Mono'; font-size:11.5px; color:var(--text); word-break:break-all; line-height:1.6;"></code>
+      <div style="font-size:11.5px; color:var(--muted); margin-top:8px;">Respons: <code style="font-family:'JetBrains Mono';">{"status":true,"result":"..."}</code></div>
     </div>
   </div>
 </div>
@@ -675,6 +709,71 @@ function mapAuthError(e){
 
 document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
 
+/* =========================================================
+   4b. API KEY — biar bisa dipakai manggil Nova AI dari luar (bot WA/Telegram, dll)
+   ========================================================= */
+function generateApiKey(){
+  const rand = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g,'') : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return 'nova_' + rand;
+}
+
+async function ensureApiKey(uid){
+  try{
+    const userDoc = await db.collection('users').doc(uid).get();
+    if(userDoc.exists && userDoc.data().apiKey){
+      return userDoc.data().apiKey;
+    }
+    const newKey = generateApiKey();
+    await db.collection('users').doc(uid).set({ apiKey: newKey }, { merge: true });
+    await db.collection('apiKeys').doc(newKey).set({ uid: uid });
+    return newKey;
+  } catch(e){
+    console.warn('Gagal ambil/buat API key (mungkin offline):', e);
+    return null;
+  }
+}
+
+async function regenerateApiKey(uid){
+  try{
+    const userDoc = await db.collection('users').doc(uid).get();
+    const oldKey = userDoc.exists ? userDoc.data().apiKey : null;
+    const newKey = generateApiKey();
+    await db.collection('users').doc(uid).set({ apiKey: newKey }, { merge: true });
+    await db.collection('apiKeys').doc(newKey).set({ uid: uid });
+    if(oldKey){ db.collection('apiKeys').doc(oldKey).delete().catch(()=>{}); }
+    return newKey;
+  } catch(e){
+    console.warn('Gagal generate ulang API key:', e);
+    return null;
+  }
+}
+
+const apiKeyModalOverlay = document.getElementById('apiKeyModalOverlay');
+const apiKeyDisplay = document.getElementById('apiKeyDisplay');
+const apiKeyEndpointExample = document.getElementById('apiKeyEndpointExample');
+
+document.getElementById('apiKeyBtn').addEventListener('click', async () => {
+  if(!currentUid) return;
+  apiKeyModalOverlay.style.display = 'flex';
+  apiKeyDisplay.value = 'Memuat...';
+  const key = await ensureApiKey(currentUid);
+  apiKeyDisplay.value = key || 'Gagal memuat (cek koneksi internet)';
+  apiKeyEndpointExample.textContent = `https://NAMA-DOMAIN-KAMU/api/chat?key=${key || 'API_KEY'}&question=halo`;
+});
+document.getElementById('apiKeyCloseBtn').addEventListener('click', () => { apiKeyModalOverlay.style.display = 'none'; });
+apiKeyModalOverlay.addEventListener('click', (e) => { if(e.target === apiKeyModalOverlay) apiKeyModalOverlay.style.display = 'none'; });
+document.getElementById('apiKeyCopyBtn').addEventListener('click', async () => {
+  try{ await navigator.clipboard.writeText(apiKeyDisplay.value); } catch(e){}
+});
+document.getElementById('apiKeyRegenBtn').addEventListener('click', async () => {
+  if(!currentUid) return;
+  if(!confirm('Yakin generate ulang? Key lama bakal langsung berhenti berfungsi.')) return;
+  apiKeyDisplay.value = 'Memproses...';
+  const key = await regenerateApiKey(currentUid);
+  apiKeyDisplay.value = key || 'Gagal generate ulang (cek koneksi internet)';
+  apiKeyEndpointExample.textContent = `https://NAMA-DOMAIN-KAMU/api/chat?key=${key || 'API_KEY'}&question=halo`;
+});
+
 document.getElementById('googleLoginBtn').addEventListener('click', () => socialLogin(new firebase.auth.GoogleAuthProvider()));
 document.getElementById('githubLoginBtn').addEventListener('click', () => socialLogin(new firebase.auth.GithubAuthProvider()));
 
@@ -869,23 +968,25 @@ function renderActiveConversation(){
     return;
   }
   welcome.style.display = 'none';
-  for(const m of conv.messages){
+  conv.messages.forEach((m, idx) => {
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + m.role;
+    const div = document.createElement('div');
+    div.className = 'msg ' + m.role;
     if(m.type === 'image'){
-      const div = document.createElement('div');
-      div.className = 'msg ' + m.role;
       div.appendChild(buildImageBubble(m.src));
-      chatLog.appendChild(div);
+    } else if(m.role === 'ai'){
+      try{ div.innerHTML = renderMarkdown(m.text); } catch(e){ div.textContent = m.text; }
     } else {
-      const div = document.createElement('div');
-      div.className = 'msg ' + m.role;
-      if(m.role === 'ai'){
-        try{ div.innerHTML = renderMarkdown(m.text); } catch(e){ div.textContent = m.text; }
-      } else {
-        div.textContent = m.text;
-      }
-      chatLog.appendChild(div);
+      div.textContent = m.text;
     }
-  }
+    row.appendChild(div);
+    chatLog.appendChild(row);
+    // gambar nggak dikasih toolbar copy/edit/regenerate (udah ada tombol unduh sendiri di bubble-nya)
+    if(m.type !== 'image'){
+      attachMessageActions(div, m.role, conv.id, idx);
+    }
+  });
   shouldAutoScroll = true;
   chatLog.scrollTop = chatLog.scrollHeight;
 }
@@ -927,6 +1028,89 @@ function followScroll(force){
   if(shouldAutoScroll) chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function buildMessageActionsHtml(kind, convId, msgIndex){
+  const copyBtn = `<button class="msg-action-btn" data-action="copy" data-conv="${convId}" data-idx="${msgIndex}" title="Salin"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>`;
+  if(kind === 'user'){
+    const editBtn = `<button class="msg-action-btn" data-action="edit" data-conv="${convId}" data-idx="${msgIndex}" title="Edit pesan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg></button>`;
+    return copyBtn + editBtn;
+  }
+  const regenBtn = `<button class="msg-action-btn" data-action="regenerate" data-conv="${convId}" data-idx="${msgIndex}" title="Buat ulang jawaban"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg></button>`;
+  return copyBtn + regenBtn;
+}
+
+// pasang toolbar aksi (copy/edit/regenerate) ke sebuah bubble pesan yang udah final/tersimpan
+function attachMessageActions(msgDiv, kind, convId, msgIndex){
+  if(!msgDiv || !msgDiv.parentElement) return;
+  const row = msgDiv.parentElement;
+  if(!row.classList || !row.classList.contains('msg-row')) return;
+  let actionsEl = row.querySelector('.msg-actions');
+  if(!actionsEl){
+    actionsEl = document.createElement('div');
+    actionsEl.className = 'msg-actions';
+    row.appendChild(actionsEl);
+  }
+  actionsEl.innerHTML = buildMessageActionsHtml(kind, convId, msgIndex);
+}
+
+// event delegation buat semua tombol aksi pesan (copy/edit/regenerate)
+document.addEventListener('click', async (e) => {
+  const actionBtn = e.target.closest('.msg-action-btn');
+  if(!actionBtn) return;
+  const action = actionBtn.dataset.action;
+  const convId = actionBtn.dataset.conv;
+  const idx = parseInt(actionBtn.dataset.idx, 10);
+  const conv = getConvById(convId);
+  if(!conv || !conv.messages[idx]) return;
+  const msg = conv.messages[idx];
+
+  if(action === 'copy'){
+    const textToCopy = msg.type === 'image' ? msg.src : msg.text;
+    try{
+      await navigator.clipboard.writeText(textToCopy || '');
+      const original = actionBtn.innerHTML;
+      actionBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+      setTimeout(() => { actionBtn.innerHTML = original; }, 1200);
+    } catch(err){ console.warn('gagal salin:', err); }
+  } else if(action === 'edit'){
+    startEditMessage(convId, idx);
+  } else if(action === 'regenerate'){
+    regenerateResponse(convId, idx);
+  }
+});
+
+// edit pesan sendiri: buang pesan ini + semua sesudahnya, isi ulang ke kotak ketik biar bisa diedit & dikirim ulang
+function startEditMessage(convId, msgIndex){
+  const conv = getConvById(convId);
+  if(!conv) return;
+  const msg = conv.messages[msgIndex];
+  if(!msg || msg.role !== 'user' || msg.type === 'image') return;
+  conv.messages = conv.messages.slice(0, msgIndex);
+  conv.updatedAt = Date.now();
+  saveConversationsToStorage(currentUid);
+  syncConversationToCloud(conv);
+  if(convId === activeConvId){ renderActiveConversation(); }
+  renderHistoryList();
+  chatInput.value = msg.text;
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 140) + 'px';
+  chatInput.focus();
+}
+
+// regenerate jawaban AI: buang jawaban lama, panggil ulang API pakai pertanyaan yang sama (tanpa nambah pesan user baru)
+async function regenerateResponse(convId, msgIndex){
+  const conv = getConvById(convId);
+  if(!conv) return;
+  const aiMsg = conv.messages[msgIndex];
+  const userMsg = conv.messages[msgIndex - 1];
+  if(!aiMsg || aiMsg.role !== 'ai' || aiMsg.type === 'image' || !userMsg || userMsg.role !== 'user') return;
+  conv.messages = conv.messages.slice(0, msgIndex);
+  conv.updatedAt = Date.now();
+  saveConversationsToStorage(currentUid);
+  syncConversationToCloud(conv);
+  if(convId === activeConvId){ renderActiveConversation(); }
+  await runAiCompletion(convId, userMsg.text);
+}
+
 function buildImageBubble(src){
   const wrap = document.createElement('div');
   wrap.className = 'img-wrap';
@@ -962,29 +1146,38 @@ async function downloadImage(src){
 
 function addMsg(text, who){
   welcomeState.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + who;
   const div = document.createElement('div');
   div.className = 'msg ' + who;
   if(who === 'ai'){ div.innerHTML = renderMarkdown(text); }
   else { div.textContent = text; }
-  chatLog.appendChild(div);
+  row.appendChild(div);
+  chatLog.appendChild(row);
   followScroll(who === 'user');
   return div;
 }
 function addImageMsg(src, who){
   welcomeState.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + who;
   const div = document.createElement('div');
   div.className = 'msg ' + who;
   div.appendChild(buildImageBubble(src));
-  chatLog.appendChild(div);
+  row.appendChild(div);
+  chatLog.appendChild(row);
   followScroll(who === 'user');
   return div;
 }
 function addTypingBubble(){
   welcomeState.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
   const div = document.createElement('div');
   div.className = 'msg ai';
   div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-  chatLog.appendChild(div);
+  row.appendChild(div);
+  chatLog.appendChild(row);
   followScroll();
   return div;
 }
@@ -1228,7 +1421,15 @@ function buildPlainContext(conv, newQuestion){
 
 async function sendChat(q){
   const targetConvId = activeConvId; // catat obrolan tujuan SEKARANG, sebelum nunggu jawaban AI
-  addMsg(q, 'user');
+  const userDiv = addMsg(q, 'user');
+  persistMessage(targetConvId, 'user', q);
+  attachMessageActions(userDiv, 'user', targetConvId, getConvById(targetConvId).messages.length - 1);
+  await runAiCompletion(targetConvId, q);
+}
+
+// proses pemanggilan AI + tampilkan jawabannya. Dipisah dari sendChat biar bisa dipakai ulang
+// buat fitur "regenerate" (tanpa perlu nambah pesan user baru).
+async function runAiCompletion(targetConvId, q){
   const conv = getConvById(targetConvId);
   let apiUrl;
   if(currentModel === 'claude'){
@@ -1238,8 +1439,7 @@ async function sendChat(q){
     const promptWithContext = buildPromptWithContext(conv, q);
     apiUrl = API.chat(promptWithContext) + `&_ts=${Date.now()}`;
   }
-  persistMessage(targetConvId, 'user', q);
-  const loadingDiv = addTypingBubble();
+  const loadingDiv = (targetConvId === activeConvId) ? addTypingBubble() : null;
   try{
     const res = await fetch(apiUrl, { cache: 'no-store' });
     const rawText = await res.text();
@@ -1255,13 +1455,16 @@ async function sendChat(q){
     }
     // cuma mainin animasi ngetik kalau user masih/udah balik ke obrolan yang sama;
     // kalau udah pindah ke obrolan lain, langsung simpen datanya diam-diam tanpa animasi
-    if(targetConvId === activeConvId){
+    if(targetConvId === activeConvId && loadingDiv){
       await revealText(loadingDiv, answer);
     }
     persistMessage(targetConvId, 'ai', answer);
+    if(targetConvId === activeConvId && loadingDiv){
+      attachMessageActions(loadingDiv, 'ai', targetConvId, getConvById(targetConvId).messages.length - 1);
+    }
   } catch(e){
     console.error('chat error:', e);
-    if(targetConvId === activeConvId){
+    if(targetConvId === activeConvId && loadingDiv){
       loadingDiv.innerHTML = '';
       loadingDiv.textContent = 'Gagal menghubungi AI. Coba lagi ya.';
     }
