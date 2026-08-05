@@ -758,7 +758,7 @@ document.getElementById('apiKeyBtn').addEventListener('click', async () => {
   apiKeyDisplay.value = 'Memuat...';
   const key = await ensureApiKey(currentUid);
   apiKeyDisplay.value = key || 'Gagal memuat (cek koneksi internet)';
-  apiKeyEndpointExample.textContent = `https://NAMA-DOMAIN-KAMU/api/chat?key=${key || 'API_KEY'}&question=halo`;
+  apiKeyEndpointExample.textContent = `https://ai-kyro.vercel.app/api/chat?key=${key || 'API_KEY'}&question=halo`;
 });
 document.getElementById('apiKeyCloseBtn').addEventListener('click', () => { apiKeyModalOverlay.style.display = 'none'; });
 apiKeyModalOverlay.addEventListener('click', (e) => { if(e.target === apiKeyModalOverlay) apiKeyModalOverlay.style.display = 'none'; });
@@ -771,7 +771,7 @@ document.getElementById('apiKeyRegenBtn').addEventListener('click', async () => 
   apiKeyDisplay.value = 'Memproses...';
   const key = await regenerateApiKey(currentUid);
   apiKeyDisplay.value = key || 'Gagal generate ulang (cek koneksi internet)';
-  apiKeyEndpointExample.textContent = `https://NAMA-DOMAIN-KAMU/api/chat?key=${key || 'API_KEY'}&question=halo`;
+  apiKeyEndpointExample.textContent = `https://ai-kyro.vercel.app/api/chat?key=${key || 'API_KEY'}&question=halo`;
 });
 
 document.getElementById('googleLoginBtn').addEventListener('click', () => socialLogin(new firebase.auth.GoogleAuthProvider()));
