@@ -1,29 +1,23 @@
-const admin = require('firebase-admin');
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
-  });
-}
+// api/chat.js
+// Endpoint publik buat manggil Nova AI dari bot WA/Telegram, atau apa aja
+//
+// Cara pakai:
+//   GET https://ai-kyro.vercel.app/api/chat?question=halo
+// Respons JSON:
+//   { "status": true, "result": "..." }
+//   { "status": false, "error": "pesan error" }
 
 const NOVA_IDENTITY =
   'Kamu adalah "Nova AI v1.0", asisten AI yang dibuat oleh Kyro. Kalau ditanya siapa kamu atau siapa yang membuatmu, jawab bahwa kamu Nova AI v1.0 buatan Kyro. Jangan sebut ChatGPT/GPT/OpenAI/Gemini atau model lain.';
 
 module.exports = async (req, res) => {
-  const { key, question } = req.query;
+  const { question } = req.query;
 
-  if (!key || !question) {
-    return res.status(400).json({ status: false, error: 'Parameter "key" dan "question" wajib diisi.' });
+  if (!question) {
+    return res.status(400).json({ status: false, error: 'Parameter "question" wajib diisi.' });
   }
 
   try {
-    const db = admin.firestore();
-    const keyDoc = await db.collection('apiKeys').doc(String(key)).get();
-
-    if (!keyDoc.exists) {
-      return res.status(401).json({ status: false, error: 'API key tidak valid.' });
-    }
-
     const prompt = `${NOVA_IDENTITY}\nUser: ${question}\nNova:`;
     const apiRes = await fetch(
       `https://api.ikyyxd.my.id/ai/gpt-5-mini?question=${encodeURIComponent(prompt)}`
