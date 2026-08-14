@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: nova-ai-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    rootDir: backend
+    envVars:
+      - key: OLLAMA_API
+        value: http://localhost:11434
+        scope: build,runtime
+      - key: OLLAMA_MODEL
+        value: mistral
+        scope: build,runtime
+      - key: FLASK_ENV
+        value: production
+        scope: runtime
+      - key: PORT
+        value: 5000
+        scope: runtime
