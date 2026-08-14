@@ -1,6 +1,6 @@
 import { hfToken, json, parseJson } from "./_hf.js";
 
-const MODEL = "Qwen/Qwen2.5-VL-7B-Instruct";
+const MODEL = "Qwen/Qwen2.5-7B-Instruct-1M";
 
 export default async function handler(req, res) {
   try {
