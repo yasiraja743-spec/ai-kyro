@@ -1,15 +1,19 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({
-      status: false,
-      error: "Method Not Allowed"
-    });
-  }
-
   try {
-    const body = req.body || {};
-    const prompt = String(body.prompt || "").trim();
+    let prompt = "";
+
+    if (req.method === "GET") {
+      prompt = String(req.query?.prompt || "").trim();
+    } else if (req.method === "POST") {
+      const body = req.body || {};
+      prompt = String(body.prompt || "").trim();
+    } else {
+      res.setHeader("Allow", "GET, POST");
+      return res.status(405).json({
+        status: false,
+        error: "Method Not Allowed"
+      });
+    }
 
     if (!prompt) {
       return res.status(400).json({
@@ -28,15 +32,14 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
 
-      return res.status(response.status).json({
+      return res.status(500).json({
         status: false,
-        error: `Pollinations HTTP ${response.status}`,
+        error: `Image provider HTTP ${response.status}`,
         detail: errorText.slice(0, 500)
       });
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-
     const mime =
       response.headers.get("content-type") || "image/jpeg";
 
@@ -47,12 +50,12 @@ export default async function handler(req, res) {
 
     return res.end(buffer);
 
-  } catch (error) {
-    console.error("Generate image error:", error);
+  } catch (e) {
+    console.error(e);
 
     return res.status(500).json({
       status: false,
-      error: error.message || "Image generation failed"
+      error: e.message || "Image generation failed"
     });
   }
 }
