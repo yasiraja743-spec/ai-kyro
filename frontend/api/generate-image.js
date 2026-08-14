@@ -1,17 +1,80 @@
-import { InferenceClient } from "@huggingface/inference";
 import { hfToken, json, parseJson } from "./_hf.js";
+import { InferenceClient } from "@huggingface/inference";
 
-const MODEL = "Qwen/Qwen-Image-2512";
+const HF_MODEL = "Qwen/Qwen-Image-2512";
+
+async function pollinations(prompt) {
+  const url =
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
+    `?width=1024&height=1024&nologo=true`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Pollinations HTTP ${response.status}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  const mime =
+    response.headers.get("content-type") || "image/jpeg";
+
+  return {
+    buffer,
+    mime,
+    provider: "pollinations"
+  };
+}
+
+async function huggingface(prompt) {
+  const token = hfToken();
+
+  if (!token) {
+    throw new Error("HF_TOKEN belum dikonfigurasi");
+  }
+
+  const client = new InferenceClient(token);
+
+  const image = await client.textToImage({
+    model: HF_MODEL,
+    inputs: prompt,
+    provider: "auto"
+  });
+
+  const buffer = Buffer.from(await image.arrayBuffer());
+
+  const mime =
+    image.type || "image/png";
+
+  return {
+    buffer,
+    mime,
+    provider: "huggingface"
+  };
+}
 
 export default async function handler(req, res) {
   try {
     let body = {};
 
+    // =========================
+    // GET
+    // =========================
     if (req.method === "GET") {
       body = req.query || {};
-    } else if (req.method === "POST") {
+    }
+
+    // =========================
+    // POST
+    // =========================
+    else if (req.method === "POST") {
       body = await parseJson(req);
-    } else {
+    }
+
+    // =========================
+    // METHOD
+    // =========================
+    else {
       return json(res, 405, {
         status: false,
         error: "Method Not Allowed",
@@ -28,35 +91,65 @@ export default async function handler(req, res) {
       });
     }
 
-    const token = hfToken();
+    // =========================
+    // PROVIDER 1
+    // POLLINATIONS
+    // =========================
+    try {
+      const result = await pollinations(prompt);
 
-    if (!token) {
-      return json(res, 500, {
+      return json(res, 200, {
+        status: true,
+        provider: result.provider,
+        prompt,
+        mime: result.mime,
+        image: `data:${result.mime};base64,${result.buffer.toString("base64")}`
+      });
+
+    } catch (pollinationsError) {
+      console.error(
+        "Pollinations failed:",
+        pollinationsError?.message
+      );
+    }
+
+    // =========================
+    // PROVIDER 2
+    // HUGGING FACE
+    // =========================
+    try {
+      const result = await huggingface(prompt);
+
+      return json(res, 200, {
+        status: true,
+        provider: result.provider,
+        model: HF_MODEL,
+        prompt,
+        mime: result.mime,
+        image: `data:${result.mime};base64,${result.buffer.toString("base64")}`
+      });
+
+    } catch (hfError) {
+      console.error(
+        "Hugging Face failed:",
+        hfError?.message
+      );
+
+      return json(res, 502, {
         status: false,
-        error: "HF_TOKEN belum dikonfigurasi"
+        error: "Semua image provider gagal",
+        providers: {
+          pollinations: "failed",
+          huggingface: "failed"
+        },
+        details: {
+          huggingface: hfError?.message || "Unknown error"
+        }
       });
     }
 
-    const client = new InferenceClient(token);
-
-    const image = await client.textToImage({
-      model: MODEL,
-      inputs: prompt,
-      provider: "auto"
-    });
-
-    const buffer = Buffer.from(await image.arrayBuffer());
-    const mime = image.type || "image/png";
-
-    return json(res, 200, {
-      status: true,
-      model: MODEL,
-      prompt,
-      image: `data:${mime};base64,${buffer.toString("base64")}`
-    });
-
   } catch (e) {
-    console.error("NOVA AI T2I:", e);
+    console.error("NOVA AI T2I ERROR:", e);
 
     return json(res, 500, {
       status: false,
