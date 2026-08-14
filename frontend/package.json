@@ -6,7 +6,15 @@
   "scripts": {
     "dev": "python -m http.server 3000"
   },
-  "keywords": ["ai", "chat", "image", "photo-edit"],
+  "keywords": [
+    "ai",
+    "chat",
+    "image",
+    "photo-edit"
+  ],
   "author": "Kyro",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@huggingface/inference": "^4.13.0"
+  }
 }

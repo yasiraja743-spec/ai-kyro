@@ -416,15 +416,11 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 /* =========================================================
    2. API ENDPOINTS
    ========================================================= */
-const BACKEND_URL =
-  window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-    ? 'http://localhost:5000'
-    : '/api-backend';
 const API = {
-  chat: `${BACKEND_URL}/api/chat`,
-  generateImage: `${BACKEND_URL}/api/generate-image`,
-  editPhoto: `${BACKEND_URL}/api/edit-photo`,
-  health: `${BACKEND_URL}/health`
+  chat: '/api/chat',
+  generateImage: '/api/generate-image',
+  editPhoto: '/api/edit-photo',
+  health: '/api/health'
 };
 
 /* =========================================================

@@ -1,9 +1,3 @@
 {
-  "version": 2,
-  "rewrites": [
-    {
-      "source": "/api-backend/:path*",
-      "destination": "https://nova-ai-backend.onrender.com/:path*"
-    }
-  ]
+  "version": 2
 }
