@@ -119,3 +119,12 @@ Built with ❤️ by Kyro
 ---
 
 **Next: [SETUP.md](./SETUP.md)** untuk langkah-langkah deploy lengkap.
+
+
+## Vercel + Render
+- Vercel Root Directory: `frontend`
+- Framework Preset: `Other`
+- Build/Install/Development Command overrides: OFF
+- `frontend/vercel.json` proxies `/api-backend/*` to `https://nova-ai-backend.onrender.com/*`.
+- If your Render backend URL is different, change the `destination` in `frontend/vercel.json`.
+- The backend needs a reachable Ollama server via the `OLLAMA_API` environment variable. Do not use `localhost` on Render unless Ollama runs inside the same Render service.

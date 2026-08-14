@@ -9,7 +9,7 @@ services:
     rootDir: backend
     envVars:
       - key: OLLAMA_API
-        value: http://localhost:11434
+        value: https://CHANGE-ME-OLLAMA-HOST
         scope: build,runtime
       - key: OLLAMA_MODEL
         value: mistral
