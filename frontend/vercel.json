@@ -1,8 +1,3 @@
 {
-  "buildCommand": "true",
-  "outputDirectory": ".",
-  "installCommand": "true",
-  "env": {
-    "REACT_APP_BACKEND_URL": "@backend-url"
-  }
+  "version": 2
 }
