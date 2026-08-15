@@ -3,6 +3,9 @@ import { json, parseJson } from "./_hf.js";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
+const OPENROUTER_MODEL = "openai/gpt-oss-20b:free";
+const GROQ_MODEL = "openai/gpt-oss-120b";
+
 const SYSTEM_PROMPT = `
 Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
 
@@ -35,20 +38,7 @@ ATURAN FILE DAN KODE:
 [/package]
 
 2. Nama file harus berada tepat setelah [package].
-3. Untuk beberapa file, gunakan package terpisah:
-
-[package]index.html
-...
-[/package]
-
-[package]style.css
-...
-[/package]
-
-[package]script.js
-...
-[/package]
-
+3. Untuk beberapa file, gunakan package terpisah.
 4. Jangan menggunakan triple backtick untuk file yang menggunakan format [package].
 5. Jangan menambahkan reasoning atau penjelasan di dalam package.
 6. Jangan memotong kode dengan "...", "dst", atau placeholder.
@@ -62,6 +52,7 @@ PENTING:
 Output yang terlihat pengguna harus hanya jawaban final.
 Jangan pernah menampilkan proses berpikir internal.
 `;
+
 async function requestOpenRouter(messages) {
   if (!OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY belum dikonfigurasi");
@@ -78,10 +69,10 @@ async function requestOpenRouter(messages) {
         "X-Title": "NOVA AI"
       },
       body: JSON.stringify({
-        model: "openrouter/free",
+        model: OPENROUTER_MODEL,
         messages,
         temperature: 0.7,
-        max_tokens: 16384
+        max_tokens: 32768
       })
     }
   );
@@ -100,7 +91,10 @@ async function requestOpenRouter(messages) {
     );
   }
 
-  const result = data?.choices?.[0]?.message?.content;
+  const result =
+    data?.choices?.[0]?.message?.content ||
+    data?.choices?.[0]?.text ||
+    "";
 
   if (!result) {
     throw new Error("OpenRouter tidak mengembalikan hasil");
@@ -109,7 +103,7 @@ async function requestOpenRouter(messages) {
   return {
     result,
     provider: "openrouter",
-    model: data?.model || "openrouter/free"
+    model: data?.model || OPENROUTER_MODEL
   };
 }
 
@@ -127,10 +121,10 @@ async function requestGroq(messages) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-oss-120b",
+        model: GROQ_MODEL,
         messages,
         temperature: 0.7,
-        max_tokens: 16384
+        max_tokens: 32768
       })
     }
   );
@@ -149,7 +143,10 @@ async function requestGroq(messages) {
     );
   }
 
-  const result = data?.choices?.[0]?.message?.content;
+  const result =
+    data?.choices?.[0]?.message?.content ||
+    data?.choices?.[0]?.text ||
+    "";
 
   if (!result) {
     throw new Error("Groq tidak mengembalikan hasil");
@@ -158,7 +155,7 @@ async function requestGroq(messages) {
   return {
     result,
     provider: "groq",
-    model: data?.model || "openai/gpt-oss-120b"
+    model: data?.model || GROQ_MODEL
   };
 }
 
@@ -210,8 +207,13 @@ export default async function handler(req, res) {
         result: result.result
       });
     } catch (error) {
-      openRouterError = error?.message || "OpenRouter gagal";
-      console.error("OPENROUTER FAILED:", openRouterError);
+      openRouterError =
+        error?.message || "OpenRouter gagal";
+
+      console.error(
+        "OPENROUTER FAILED:",
+        openRouterError
+      );
     }
 
     try {
@@ -228,7 +230,10 @@ export default async function handler(req, res) {
       const groqErrorMessage =
         groqError?.message || "Groq gagal";
 
-      console.error("GROQ FAILED:", groqErrorMessage);
+      console.error(
+        "GROQ FAILED:",
+        groqErrorMessage
+      );
 
       return json(res, 503, {
         status: false,
@@ -240,11 +245,16 @@ export default async function handler(req, res) {
       });
     }
   } catch (error) {
-    console.error("NOVA AI ERROR:", error);
+    console.error(
+      "NOVA AI ERROR:",
+      error
+    );
 
     return json(res, 500, {
       status: false,
-      error: error?.message || "Internal Server Error"
+      error:
+        error?.message ||
+        "Internal Server Error"
     });
   }
 }
