@@ -1,18 +1,3 @@
-import crypto from "node:crypto";
-import {
-  S3Client,
-  PutObjectCommand
-} from "@aws-sdk/client-s3";
-
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
-  }
-});
-
 export const config = {
   api: {
     bodyParser: false
@@ -24,23 +9,6 @@ export default async function handler(req, res) {
     return res.status(405).json({
       status: false,
       error: "Method Not Allowed"
-    });
-  }
-
-  const requiredEnv = [
-    "R2_ACCOUNT_ID",
-    "R2_ACCESS_KEY_ID",
-    "R2_SECRET_ACCESS_KEY",
-    "R2_BUCKET_NAME",
-    "R2_PUBLIC_URL"
-  ];
-  const missingEnv = requiredEnv.filter((key) => !process.env[key]);
-
-  if (missingEnv.length) {
-    return res.status(500).json({
-      status: false,
-      error: "Konfigurasi R2 belum lengkap di Environment Variables",
-      missing: missingEnv
     });
   }
 
@@ -86,32 +54,81 @@ export default async function handler(req, res) {
         ? "gif"
         : "jpg";
 
-    const filename =
-      `uploads/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const filename = `upload-${Date.now()}.${ext}`;
 
-    await r2.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: filename,
-        Body: buffer,
-        ContentType: contentType,
-        CacheControl: "public, max-age=86400"
-      })
+    const form = new FormData();
+    form.append(
+      "file",
+      new Blob([buffer], { type: contentType }),
+      filename
     );
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    let uploadResponse;
+
+    try {
+      uploadResponse = await fetch("https://api.nexray.eu.cc/upload", {
+        method: "POST",
+        body: form,
+        signal: controller.signal
+      });
+    } catch (fetchError) {
+      return res.status(504).json({
+        status: false,
+        error: "Gagal menghubungi layanan upload (timeout/network error)",
+        detail: fetchError?.message || String(fetchError)
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const raw = await uploadResponse.text();
+    let data;
+
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return res.status(502).json({
+        status: false,
+        error: "Respon layanan upload bukan JSON valid",
+        detail: raw.slice(0, 1000)
+      });
+    }
+
+    if (!uploadResponse.ok || data?.status === false || data?.result?.success === false) {
+      return res.status(502).json({
+        status: false,
+        error: "Layanan upload gagal memproses gambar",
+        upstream_status: uploadResponse.status,
+        detail: data
+      });
+    }
+
     const publicUrl =
-      `${process.env.R2_PUBLIC_URL.replace(/\/$/, "")}/${filename}`;
+      data?.result?.url ||
+      data?.url ||
+      null;
+
+    if (!publicUrl) {
+      return res.status(502).json({
+        status: false,
+        error: "URL hasil upload tidak ditemukan",
+        detail: data
+      });
+    }
 
     return res.status(200).json({
       status: true,
       url: publicUrl,
-      filename,
-      content_type: contentType,
-      size: buffer.length
+      filename: data?.result?.filename || filename,
+      content_type: data?.result?.mimeType || contentType,
+      size: data?.result?.size || buffer.length
     });
 
   } catch (error) {
-    console.error("R2 UPLOAD ERROR:", error);
+    console.error("UPLOAD IMAGE ERROR:", error);
 
     return res.status(500).json({
       status: false,
