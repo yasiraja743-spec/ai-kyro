@@ -367,6 +367,7 @@
           </div>
           <div id="modeIndicator"><span id="modeIndicatorText"></span><button id="modeCancelBtn">Batal</button></div>
           <div id="filePickChip">
+            <img id="filePickThumb" alt="" style="display:none; width:28px; height:28px; border-radius:6px; object-fit:cover; border:1px solid var(--border);">
             <span id="filePickLabel">Belum ada foto dipilih</span>
             <button id="filePickBtn">Pilih Foto</button>
           </div>
@@ -420,6 +421,7 @@ const API = {
   chat: '/api/chat',
   generateImage: '/api/generate-image',
   editPhoto: '/api/edit-photo',
+  uploadImage: '/api/upload-image',
   health: '/api/health'
 };
 
@@ -1151,6 +1153,7 @@ const modeIndicator = document.getElementById('modeIndicator');
 const modeIndicatorText = document.getElementById('modeIndicatorText');
 const filePickChip = document.getElementById('filePickChip');
 const filePickLabel = document.getElementById('filePickLabel');
+const filePickThumb = document.getElementById('filePickThumb');
 const hiddenFileInput = document.getElementById('hiddenFileInput');
 
 document.getElementById('plusBtn').addEventListener('click', (e) => {
@@ -1186,12 +1189,17 @@ function resetMode(){
   chatInput.placeholder = 'Tulis pesan...';
   modeIndicator.classList.remove('show');
   filePickChip.classList.remove('show');
+  filePickThumb.style.display = 'none';
+  filePickThumb.src = '';
+  filePickLabel.textContent = 'Belum ada foto dipilih';
 }
 document.getElementById('filePickBtn').addEventListener('click', () => hiddenFileInput.click());
 hiddenFileInput.addEventListener('change', () => {
   if(hiddenFileInput.files[0]){
     pickedFile = hiddenFileInput.files[0];
     filePickLabel.textContent = pickedFile.name;
+    filePickThumb.src = URL.createObjectURL(pickedFile);
+    filePickThumb.style.display = 'inline-block';
   }
 });
 
@@ -1408,48 +1416,64 @@ async function sendImageMessage(prompt){
 }
 
 
+function blobToDataURL(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Gagal membaca file'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function sendEditPhotoMessage(prompt, file){
   const targetConvId = activeConvId;
   addMsg('[Edit foto: ' + prompt + ']', 'user');
   persistMessage(targetConvId, 'user', '[Edit foto] ' + prompt);
   const loadingDiv = addTypingBubble();
   try{
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const imgBase64 = e.target.result;
-      try{
-        const res = await fetch(API.editPhoto, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image: imgBase64,
-            operation: 'enhance',
-            prompt: prompt
-          })
-        });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if(!data.status) throw new Error(data.error || 'Edit failed');
-        if(targetConvId === activeConvId){
-          loadingDiv.parentElement.remove();
-          const imgDiv = addImageMsg(data.image, 'ai');
-          attachMessageActions(imgDiv, 'ai', targetConvId, getConvById(targetConvId).messages.length - 1);
-        }
-        persistMessage(targetConvId, 'ai', data.image, 'image');
-      } catch(e){
-        console.error('photo edit error:', e);
-        if(targetConvId === activeConvId){
-          loadingDiv.innerHTML = '';
-          loadingDiv.textContent = 'Edit error: ' + e.message;
-        }
-      }
-    };
-    reader.readAsDataURL(file);
+    // 1) Upload foto dulu ke storage supaya dapat URL publik
+    //    (API edit-photo butuh URL http(s), bukan base64/data URI).
+    const uploadRes = await fetch(API.uploadImage, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'image/jpeg' },
+      body: file
+    });
+    if(!uploadRes.ok) throw new Error(`Upload HTTP ${uploadRes.status}`);
+    const uploadData = await uploadRes.json();
+    if(!uploadData.status) throw new Error(uploadData.error || 'Upload foto gagal');
+
+    // 2) Kirim URL foto + prompt ke edit-photo
+    const editRes = await fetch(API.editPhoto, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: uploadData.url,
+        prompt: prompt
+      })
+    });
+    if(!editRes.ok){
+      let errMsg = `HTTP ${editRes.status}`;
+      try{ const errJson = await editRes.json(); errMsg = errJson.error || errMsg; } catch{}
+      throw new Error(errMsg);
+    }
+
+    // 3) Response edit-photo berupa bytes gambar langsung (bukan JSON),
+    //    jadi diambil sebagai blob lalu diubah ke data URL biar bisa
+    //    ditampilkan & disimpan (localStorage butuh string, bukan blob URL).
+    const blob = await editRes.blob();
+    const dataUrl = await blobToDataURL(blob);
+
+    if(targetConvId === activeConvId){
+      loadingDiv.parentElement.remove();
+      const imgDiv = addImageMsg(dataUrl, 'ai');
+      attachMessageActions(imgDiv, 'ai', targetConvId, getConvById(targetConvId).messages.length - 1);
+    }
+    persistMessage(targetConvId, 'ai', dataUrl, 'image');
   } catch(e){
-    console.error('photo read error:', e);
+    console.error('photo edit error:', e);
     if(targetConvId === activeConvId){
       loadingDiv.innerHTML = '';
-      loadingDiv.textContent = 'File read error: ' + e.message;
+      loadingDiv.textContent = 'Edit error: ' + e.message;
     }
   }
 }
