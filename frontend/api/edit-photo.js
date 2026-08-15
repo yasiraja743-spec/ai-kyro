@@ -4,22 +4,15 @@ const MODEL = "Qwen/Qwen-Image-Edit";
 
 export default async function handler(req, res) {
   try {
-    if (req.method !== "GET" && req.method !== "POST") {
+    if (req.method !== "GET") {
       return res.status(405).json({
         status: false,
         error: "Method Not Allowed"
       });
     }
 
-    const imageUrl =
-      req.method === "GET"
-        ? req.query?.image
-        : req.body?.image;
-
-    const prompt =
-      req.method === "GET"
-        ? req.query?.prompt
-        : req.body?.prompt;
+    const imageUrl = String(req.query.image || "").trim();
+    const prompt = String(req.query.prompt || "").trim();
 
     if (!imageUrl) {
       return res.status(400).json({
@@ -44,72 +37,104 @@ export default async function handler(req, res) {
       });
     }
 
-    const imageResponse = await fetch(imageUrl);
+    let image;
 
-    if (!imageResponse.ok) {
+    try {
+      image = await fetch(imageUrl);
+    } catch (error) {
       return res.status(400).json({
         status: false,
-        error: "Gagal mengambil gambar dari URL",
-        http_status: imageResponse.status
+        error: "Gagal download gambar dari URL",
+        detail: error.message
       });
     }
 
-    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    if (!image.ok) {
+      return res.status(400).json({
+        status: false,
+        error: "URL gambar tidak bisa diakses",
+        http_status: image.status
+      });
+    }
+
+    const contentType =
+      image.headers.get("content-type") || "image/jpeg";
+
+    if (!contentType.startsWith("image/")) {
+      return res.status(400).json({
+        status: false,
+        error: "URL tersebut bukan file gambar",
+        content_type: contentType
+      });
+    }
+
+    const imageBuffer = Buffer.from(
+      await image.arrayBuffer()
+    );
 
     const form = new FormData();
 
     form.append(
       "image",
       new Blob([imageBuffer], {
-        type: imageResponse.headers.get("content-type") || "image/jpeg"
+        type: contentType
       }),
       "input.jpg"
     );
 
-    form.append("prompt", String(prompt));
+    form.append("prompt", prompt);
 
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${MODEL}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: form
-      }
-    );
+    let hfResponse;
 
-    if (!response.ok) {
-      const text = await response.text();
-
-      return res.status(response.status).json({
+    try {
+      hfResponse = await fetch(
+        `https://api-inference.huggingface.co/models/${MODEL}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: form
+        }
+      );
+    } catch (error) {
+      return res.status(503).json({
         status: false,
-        error: text || `Hugging Face HTTP ${response.status}`
+        error: "Gagal menghubungi Hugging Face",
+        detail: error.message
+      });
+    }
+
+    if (!hfResponse.ok) {
+      const errorText = await hfResponse.text();
+
+      return res.status(hfResponse.status).json({
+        status: false,
+        error: "Hugging Face gagal memproses gambar",
+        detail: errorText
       });
     }
 
     const resultBuffer = Buffer.from(
-      await response.arrayBuffer()
+      await hfResponse.arrayBuffer()
     );
 
-    const contentType =
-      response.headers.get("content-type") || "image/png";
+    const resultType =
+      hfResponse.headers.get("content-type") ||
+      "image/png";
 
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Type", resultType);
     res.setHeader("Content-Length", resultBuffer.length);
-    res.setHeader(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate"
-    );
+    res.setHeader("Cache-Control", "no-store");
 
     return res.status(200).send(resultBuffer);
 
   } catch (error) {
-    console.error("EDIT IMAGE ERROR:", error);
+    console.error("EDIT PHOTO ERROR:", error);
 
     return res.status(500).json({
       status: false,
-      error: error?.message || "Internal Server Error"
+      error: error.message || "Internal Server Error"
     });
   }
 }
