@@ -1,14 +1,13 @@
 import { InferenceClient } from "@huggingface/inference";
 
-const MODEL = "black-forest-labs/FLUX.2-klein-9B";
+const MODEL = "black-forest-labs/FLUX.1-Kontext-dev";
 
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
       return res.status(405).json({
         status: false,
-        error: "Method Not Allowed",
-        allowed: ["GET"]
+        error: "Method Not Allowed"
       });
     }
 
@@ -29,10 +28,21 @@ export default async function handler(req, res) {
       });
     }
 
-    if (!/^https?:\/\//i.test(imageUrl)) {
+    let parsedUrl;
+
+    try {
+      parsedUrl = new URL(imageUrl);
+    } catch {
       return res.status(400).json({
         status: false,
-        error: "image harus berupa URL http/https"
+        error: "URL gambar tidak valid"
+      });
+    }
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return res.status(400).json({
+        status: false,
+        error: "URL gambar harus menggunakan HTTP atau HTTPS"
       });
     }
 
@@ -45,12 +55,22 @@ export default async function handler(req, res) {
       });
     }
 
-    const imageResponse = await fetch(imageUrl);
+    let imageResponse;
+
+    try {
+      imageResponse = await fetch(imageUrl);
+    } catch (error) {
+      return res.status(400).json({
+        status: false,
+        error: "Gagal download gambar",
+        detail: error?.message || String(error)
+      });
+    }
 
     if (!imageResponse.ok) {
       return res.status(400).json({
         status: false,
-        error: "Gagal mengambil gambar dari URL",
+        error: "Gagal download gambar dari URL",
         http_status: imageResponse.status
       });
     }
@@ -70,6 +90,13 @@ export default async function handler(req, res) {
       await imageResponse.arrayBuffer()
     );
 
+    const inputBlob = new Blob(
+      [imageBuffer],
+      {
+        type: inputType
+      }
+    );
+
     const client = new InferenceClient(token);
 
     let output;
@@ -78,20 +105,27 @@ export default async function handler(req, res) {
       output = await client.imageToImage({
         provider: "fal-ai",
         model: MODEL,
-        inputs: imageBuffer,
+        inputs: inputBlob,
         parameters: {
-          prompt
+          prompt: prompt
         }
       });
     } catch (error) {
-      console.error("HF FAL-AI ERROR:", error);
+      console.error("HF ERROR:", error);
 
       return res.status(503).json({
         status: false,
-        error: "Gagal memproses gambar melalui HF fal-ai",
+        error: "Gagal memproses gambar melalui HF",
         detail: error?.message || String(error),
-        model: MODEL,
-        provider: "fal-ai"
+        provider: "fal-ai",
+        model: MODEL
+      });
+    }
+
+    if (!output) {
+      return res.status(502).json({
+        status: false,
+        error: "HF tidak mengembalikan gambar"
       });
     }
 
@@ -99,13 +133,22 @@ export default async function handler(req, res) {
       await output.arrayBuffer()
     );
 
+    if (!outputBuffer.length) {
+      return res.status(502).json({
+        status: false,
+        error: "Hasil gambar kosong"
+      });
+    }
+
     const outputType =
-      output.type || "image/png";
+      output.type && output.type.startsWith("image/")
+        ? output.type
+        : "image/png";
 
     res.setHeader("Content-Type", outputType);
     res.setHeader("Content-Length", outputBuffer.length);
-    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Cache-Control", "no-store");
 
     return res.status(200).send(outputBuffer);
 
