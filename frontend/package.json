@@ -15,7 +15,6 @@
   "author": "Kyro",
   "license": "MIT",
   "dependencies": {
-    "@huggingface/inference": "^4.13.11",
-    "@aws-sdk/client-s3": "^3.658.1"
+    "@huggingface/inference": "^4.13.11"
   }
 }
