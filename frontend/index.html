@@ -79,7 +79,7 @@
   #apiDocsBtn{
     width:100%; background:none; color: var(--muted); border:1px solid var(--border);
     padding:10px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Inter'; margin-bottom:12px;
-    display:flex; align-items:center; justify-content:center; gap:7px;
+    display:flex; align-items:center; justify-content:center; gap:7px; text-decoration:none; box-sizing:border-box;
   }
   #apiDocsBtn:hover{ color: var(--accent-2); border-color: var(--accent); }
   .sidebar-user{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -311,67 +311,6 @@
     #authWrapper .card{ border-radius:0 24px 24px 0; box-shadow:0 20px 50px rgba(0,0,0,0.45); }
     #authWrapper .card::before{ display:none; }
   }
-
-  /* ---------- Api Document page ---------- */
-  #apiDocsScreen{ flex:1; min-height:0; overflow-y:auto; padding-bottom:32px; }
-  #docsHeader{ display:flex; align-items:flex-start; gap:14px; margin-bottom:22px; }
-  #docsBackBtn{
-    flex-shrink:0; background: var(--surface); border:1px solid var(--border); color:var(--text);
-    padding:8px 13px; border-radius:12px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Inter';
-    display:flex; align-items:center; gap:6px; margin-top:2px;
-  }
-  #docsBackBtn:hover{ border-color: var(--accent); color: var(--accent-2); }
-  #docsHeader h1{ font-family:'Space Grotesk'; font-size:22px; font-weight:700; }
-  #docsHeader p{ color:var(--muted); font-size:13px; margin-top:4px; }
-
-  .doc-page{ display:flex; flex-direction:column; gap:20px; animation: msgIn .2s ease; }
-  .doc-card{ background: var(--surface); border:1px solid var(--border); border-radius:18px; padding:22px; }
-  .doc-card-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
-  .doc-method{ font-family:'JetBrains Mono'; font-size:11px; font-weight:700; padding:3px 9px; border-radius:7px; letter-spacing:0.5px; }
-  .doc-method.get{ background: rgba(74,166,255,0.15); color:#7EB8FF; }
-  .doc-method.post{ background: var(--accent-soft); color: var(--accent-2); }
-  .doc-endpoint{ font-family:'JetBrains Mono'; font-size:12.5px; color:var(--text); word-break:break-all; }
-  .doc-card h2{ font-family:'Space Grotesk'; font-size:18px; font-weight:700; margin:10px 0 4px; }
-  .doc-card .doc-desc{ color:var(--muted); font-size:13.5px; line-height:1.6; margin-bottom:14px; }
-  .doc-params{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:16px; }
-  .doc-params th{ text-align:left; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border); text-transform:uppercase; font-size:10.5px; letter-spacing:0.5px; }
-  .doc-params td{ padding:8px; border-bottom:1px solid var(--border); }
-  .doc-params td:first-child{ font-family:'JetBrains Mono'; color: var(--accent-2); }
-  .doc-code{ background: var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; position:relative; margin-bottom:6px; }
-  .doc-code pre{ font-family:'JetBrains Mono'; font-size:12px; color:var(--text); white-space:pre-wrap; word-break:break-all; padding-right:60px; }
-  .doc-code .copy-btn{ position:absolute; top:9px; right:9px; }
-  .doc-try{ border-top:1px solid var(--border); margin-top:16px; padding-top:16px; }
-  .doc-try h3{ font-family:'Space Grotesk'; font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:7px; }
-  .doc-try h3 svg{ color: var(--accent-2); }
-  .doc-field{ margin-bottom:12px; }
-  .doc-field label{ display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; font-weight:600; }
-  .doc-field input, .doc-field textarea{
-    width:100%; background: var(--surface-2); border:1px solid var(--border); color:var(--text);
-    padding:10px 12px; border-radius:10px; font-size:13.5px; font-family:'Inter'; resize:vertical;
-  }
-  .doc-field input:focus, .doc-field textarea:focus{ outline:none; border-color: var(--accent); }
-  .doc-try-btn{
-    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#1A1406; font-weight:700;
-    border:none; padding:10px 20px; border-radius:12px; cursor:pointer; font-size:13.5px; font-family:'Inter';
-    box-shadow: 0 8px 20px rgba(212,175,55,0.28); display:flex; align-items:center; gap:7px;
-  }
-  .doc-try-btn:hover{ filter:brightness(1.08); }
-  .doc-try-btn:disabled{ opacity:0.55; cursor:not-allowed; }
-  .doc-response{ margin-top:14px; background: var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:none; }
-  .doc-response.show{ display:block; }
-  .doc-response pre{ font-family:'JetBrains Mono'; font-size:12px; white-space:pre-wrap; word-break:break-word; max-height:280px; overflow:auto; }
-  .doc-response img{ max-width:100%; border-radius:10px; display:block; }
-  .doc-response .doc-response-label{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px; font-weight:600; }
-
-  #docsPagination{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:26px; }
-  .doc-page-btn{
-    width:34px; height:34px; border-radius:10px; border:1px solid var(--border); background: var(--surface);
-    color:var(--muted); cursor:pointer; font-size:13px; font-weight:600; font-family:'Inter';
-    display:flex; align-items:center; justify-content:center;
-  }
-  .doc-page-btn:hover{ border-color: var(--accent); color: var(--accent-2); }
-  .doc-page-btn.active{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#1A1406; border-color:transparent; }
-  .doc-page-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 </style>
 </head>
 <body>
@@ -390,7 +329,7 @@
     <div id="historyList"><div class="history-empty">Belum ada obrolan</div></div>
     <div class="sidebar-bottom">
       <button id="newChatBtn">+ Obrolan Baru</button>
-      <button id="apiDocsBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Api Document</button>
+      <a id="apiDocsBtn" href="/api-docs.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Api Document</a>
       <div class="sidebar-user">
         <span id="userLabel"></span>
         <button class="btn-ghost" id="logoutBtn">Keluar</button>
@@ -499,19 +438,6 @@
             <button class="btn-primary" id="chatSendBtn"><span>Kirim</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
           </div>
         </div>
-      </div>
-
-      <!-- API DOCS -->
-      <div id="apiDocsScreen" style="display:none;">
-        <div id="docsHeader">
-          <button id="docsBackBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Kembali</button>
-          <div>
-            <h1>Api Document</h1>
-            <p>Daftar endpoint NOVA AI beserta cara pakai &amp; try-it langsung.</p>
-          </div>
-        </div>
-        <div id="docsBody"></div>
-        <div id="docsPagination"></div>
       </div>
     </div>
   </div>
@@ -946,254 +872,6 @@ function createNewConversation(closeSidebarAfter){
   if(closeSidebarAfter) closeSidebar();
 }
 document.getElementById('newChatBtn').addEventListener('click', () => createNewConversation(true));
-
-/* =========================================================
-   API DOCUMENT PAGE
-   ========================================================= */
-const API_DOCS = [
-  {
-    id: 'chat',
-    title: 'Chat AI',
-    method: 'POST',
-    endpoint: '/api/chat',
-    desc: 'Kirim pertanyaan ke NOVA AI dan dapatkan jawaban teks. Otomatis fallback ke provider cadangan kalau provider utama gagal.',
-    params: [
-      { name: 'question', type: 'string', required: true, desc: 'Pertanyaan / pesan yang dikirim ke AI' }
-    ],
-    code:
-`fetch('/api/chat', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ question: 'hai' })
-})
-  .then(res => res.json())
-  .then(data => console.log(data));`,
-    fields: [
-      { key: 'question', label: 'Question', type: 'textarea', placeholder: 'Tulis pertanyaan...', value: 'hai' }
-    ],
-    run: async (values) => {
-      const res = await fetch(API.chat, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: values.question })
-      });
-      const data = await res.json();
-      return { kind: 'json', ok: res.ok, data };
-    }
-  },
-  {
-    id: 'generate-image',
-    title: 'Generate Image',
-    method: 'POST',
-    endpoint: '/api/generate-image',
-    desc: 'Buat gambar baru dari deskripsi teks (text-to-image). Respon berupa file gambar langsung.',
-    params: [
-      { name: 'prompt', type: 'string', required: true, desc: 'Deskripsi gambar yang ingin dibuat' }
-    ],
-    code:
-`fetch('/api/generate-image', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ prompt: 'pemandangan gunung saat matahari terbit' })
-})
-  .then(res => res.blob())
-  .then(blob => {
-    const url = URL.createObjectURL(blob);
-    // pakai url ini di <img src="...">
-  });`,
-    fields: [
-      { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: 'Deskripsikan gambar...', value: 'pemandangan gunung saat matahari terbit' }
-    ],
-    run: async (values) => {
-      const res = await fetch(API.generateImage, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: values.prompt })
-      });
-      if(!res.ok){
-        let errData = { error: `HTTP ${res.status}` };
-        try{ errData = await res.json(); } catch{}
-        return { kind: 'json', ok: false, data: errData };
-      }
-      const blob = await res.blob();
-      const dataUrl = await blobToDataURL(blob);
-      return { kind: 'image', ok: true, dataUrl };
-    }
-  },
-  {
-    id: 'edit-photo',
-    title: 'Edit Photo',
-    method: 'POST',
-    endpoint: '/api/edit-photo',
-    desc: 'Edit foto yang sudah ada berdasarkan instruksi teks. Butuh URL gambar publik (upload dulu lewat /api/upload-image kalau fotonya dari perangkatmu).',
-    params: [
-      { name: 'url', type: 'string', required: true, desc: 'URL publik (http/https) gambar yang mau diedit' },
-      { name: 'prompt', type: 'string', required: true, desc: 'Instruksi edit, contoh: "buat jadi gaya kartun"' }
-    ],
-    code:
-`fetch('/api/edit-photo', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    url: 'https://contoh.com/foto.jpg',
-    prompt: 'buat jadi gaya kartun'
-  })
-})
-  .then(res => res.blob())
-  .then(blob => {
-    const url = URL.createObjectURL(blob);
-    // pakai url ini di <img src="...">
-  });`,
-    fields: [
-      { key: 'url', label: 'Image URL', type: 'input', placeholder: 'https://contoh.com/foto.jpg', value: '' },
-      { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: 'Instruksi edit...', value: 'buat jadi gaya kartun' }
-    ],
-    run: async (values) => {
-      const res = await fetch(API.editPhoto, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: values.url, prompt: values.prompt })
-      });
-      if(!res.ok){
-        let errData = { error: `HTTP ${res.status}` };
-        try{ errData = await res.json(); } catch{}
-        return { kind: 'json', ok: false, data: errData };
-      }
-      const blob = await res.blob();
-      const dataUrl = await blobToDataURL(blob);
-      return { kind: 'image', ok: true, dataUrl };
-    }
-  }
-];
-
-let docsCurrentPage = 0;
-
-function openApiDocs(){
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('apiDocsScreen').style.display = 'block';
-  document.getElementById('topbarTitle').textContent = 'Api Document';
-  docsCurrentPage = 0;
-  renderDocsPage();
-  closeSidebar();
-}
-function closeApiDocs(){
-  document.getElementById('apiDocsScreen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'flex';
-  document.getElementById('topbarTitle').textContent = 'NOVA';
-}
-document.getElementById('apiDocsBtn').addEventListener('click', openApiDocs);
-document.getElementById('docsBackBtn').addEventListener('click', closeApiDocs);
-
-function renderDocsPage(){
-  const doc = API_DOCS[docsCurrentPage];
-  const body = document.getElementById('docsBody');
-  body.innerHTML = `
-    <div class="doc-page">
-      <div class="doc-card">
-        <div class="doc-card-head">
-          <span class="doc-method ${doc.method.toLowerCase()}">${doc.method}</span>
-          <span class="doc-endpoint">${doc.endpoint}</span>
-        </div>
-        <h2>${doc.title}</h2>
-        <p class="doc-desc">${doc.desc}</p>
-        <table class="doc-params">
-          <thead><tr><th>Parameter</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
-          <tbody>
-            ${doc.params.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.required ? 'Ya' : 'Tidak'}</td><td>${p.desc}</td></tr>`).join('')}
-          </tbody>
-        </table>
-        <div class="doc-code">
-          <pre><code>${escapeHtml(doc.code)}</code></pre>
-          <button class="copy-btn doc-copy-code" type="button">Copy</button>
-        </div>
-        <div class="doc-try">
-          <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Coba Sekarang</h3>
-          <div class="doc-fields">
-            ${doc.fields.map(f => `
-              <div class="doc-field">
-                <label>${f.label}</label>
-                ${f.type === 'textarea'
-                  ? `<textarea data-key="${f.key}" rows="2" placeholder="${f.placeholder}">${f.value || ''}</textarea>`
-                  : `<input data-key="${f.key}" type="text" placeholder="${f.placeholder}" value="${f.value || ''}">`}
-              </div>
-            `).join('')}
-          </div>
-          <button class="doc-try-btn" id="docTryBtn">
-            <span id="docTryBtnLabel">Submit Query</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </button>
-          <div class="doc-response" id="docResponse"></div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  body.querySelector('.doc-copy-code').addEventListener('click', (e) => {
-    navigator.clipboard.writeText(doc.code);
-    e.target.textContent = 'Copied!';
-    setTimeout(() => { e.target.textContent = 'Copy'; }, 1500);
-  });
-
-  const tryBtn = document.getElementById('docTryBtn');
-  const respBox = document.getElementById('docResponse');
-  tryBtn.addEventListener('click', async () => {
-    const values = {};
-    body.querySelectorAll('.doc-field [data-key]').forEach(el => { values[el.dataset.key] = el.value.trim(); });
-
-    const missing = doc.params.filter(p => p.required && !values[p.name]);
-    if(missing.length){
-      respBox.classList.add('show');
-      respBox.innerHTML = `<div class="doc-response-label">Error</div><pre>Parameter wajib belum diisi: ${missing.map(m => m.name).join(', ')}</pre>`;
-      return;
-    }
-
-    tryBtn.disabled = true;
-    document.getElementById('docTryBtnLabel').textContent = 'Memuat...';
-    respBox.classList.add('show');
-    respBox.innerHTML = `<div class="doc-response-label">Response</div><pre>Menunggu respon...</pre>`;
-
-    try{
-      const result = await doc.run(values);
-      if(result.kind === 'image'){
-        respBox.innerHTML = `<div class="doc-response-label">Response (${result.ok ? '200 OK' : 'Error'})</div><img src="${result.dataUrl}" alt="Hasil">`;
-      } else {
-        respBox.innerHTML = `<div class="doc-response-label">Response</div><pre>${escapeHtml(JSON.stringify(result.data, null, 2))}</pre>`;
-      }
-    } catch(e){
-      respBox.innerHTML = `<div class="doc-response-label">Error</div><pre>${escapeHtml(e.message || String(e))}</pre>`;
-    } finally {
-      tryBtn.disabled = false;
-      document.getElementById('docTryBtnLabel').textContent = 'Submit Query';
-    }
-  });
-
-  renderDocsPagination();
-}
-
-function renderDocsPagination(){
-  const pag = document.getElementById('docsPagination');
-  let html = `<button class="doc-page-btn" id="docsPrevBtn" ${docsCurrentPage === 0 ? 'disabled' : ''}>&lsaquo;</button>`;
-  API_DOCS.forEach((d, i) => {
-    html += `<button class="doc-page-btn ${i === docsCurrentPage ? 'active' : ''}" data-page="${i}">${i + 1}</button>`;
-  });
-  html += `<button class="doc-page-btn" id="docsNextBtn" ${docsCurrentPage === API_DOCS.length - 1 ? 'disabled' : ''}>&rsaquo;</button>`;
-  pag.innerHTML = html;
-
-  pag.querySelectorAll('[data-page]').forEach(btn => {
-    btn.addEventListener('click', () => { docsCurrentPage = parseInt(btn.dataset.page, 10); renderDocsPage(); });
-  });
-  const prevBtn = document.getElementById('docsPrevBtn');
-  const nextBtn = document.getElementById('docsNextBtn');
-  if(prevBtn) prevBtn.addEventListener('click', () => { if(docsCurrentPage > 0){ docsCurrentPage--; renderDocsPage(); } });
-  if(nextBtn) nextBtn.addEventListener('click', () => { if(docsCurrentPage < API_DOCS.length - 1){ docsCurrentPage++; renderDocsPage(); } });
-}
-
-function escapeHtml(str){
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
 
 function getActiveConv(){ return conversations.find(c => c.id === activeConvId); }
 function getConvById(id){ return conversations.find(c => c.id === id); }
