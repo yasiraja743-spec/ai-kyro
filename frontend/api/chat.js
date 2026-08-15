@@ -41,7 +41,7 @@ async function requestOpenRouter(messages) {
         model: "openrouter/free",
         messages,
         temperature: 0.7,
-        max_tokens: 2048
+        max_tokens: 16384
       })
     }
   );
@@ -90,7 +90,7 @@ async function requestGroq(messages) {
         model: "openai/gpt-oss-120b",
         messages,
         temperature: 0.7,
-        max_tokens: 2048
+        max_tokens: 16384
       })
     }
   );
