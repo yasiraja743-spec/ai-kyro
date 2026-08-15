@@ -15,6 +15,6 @@
   "author": "Kyro",
   "license": "MIT",
   "dependencies": {
-    "@huggingface/inference": "^4.13.0"
+    "@huggingface/inference": "^4.13.11"
   }
 }
