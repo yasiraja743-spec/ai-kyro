@@ -1,45 +1,115 @@
-import { InferenceClient } from "@huggingface/inference";
-import { hfToken, json, methodPost, parseJson } from "./_hf.js";
+import { hfToken } from "./_hf.js";
 
 const MODEL = "Qwen/Qwen-Image-Edit";
 
-function dataUrlToBlob(dataUrl) {
-  const match = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/s);
-  if (!match) throw new Error("Format image harus berupa data URL base64.");
-  const mime = match[1];
-  const bytes = Buffer.from(match[2], "base64");
-  return new Blob([bytes], { type: mime });
-}
-
 export default async function handler(req, res) {
-  if (!methodPost(req, res)) return;
-
   try {
-    const body = await parseJson(req);
-    const prompt = String(body.prompt || "").trim();
-    const image = String(body.image || "");
-    if (!prompt) return json(res, 400, { status: false, error: "prompt wajib diisi" });
-    if (!image) return json(res, 400, { status: false, error: "image wajib diisi" });
+    if (req.method !== "GET" && req.method !== "POST") {
+      return res.status(405).json({
+        status: false,
+        error: "Method Not Allowed"
+      });
+    }
 
-    const client = new InferenceClient(hfToken());
-    const result = await client.imageToImage({
-      model: MODEL,
-      provider: "fal-ai",
-      data: dataUrlToBlob(image),
-      parameters: { prompt }
-    });
+    const imageUrl =
+      req.method === "GET"
+        ? req.query?.image
+        : req.body?.image;
 
-    const buffer = Buffer.from(await result.arrayBuffer());
-    const mime = result.type || "image/png";
+    const prompt =
+      req.method === "GET"
+        ? req.query?.prompt
+        : req.body?.prompt;
 
-    return json(res, 200, {
-      status: true,
-      image: `data:${mime};base64,${buffer.toString("base64")}`
-    });
-  } catch (e) {
-    return json(res, 500, {
+    if (!imageUrl) {
+      return res.status(400).json({
+        status: false,
+        error: "Parameter image wajib diisi"
+      });
+    }
+
+    if (!prompt) {
+      return res.status(400).json({
+        status: false,
+        error: "Parameter prompt wajib diisi"
+      });
+    }
+
+    const token = hfToken();
+
+    if (!token) {
+      return res.status(500).json({
+        status: false,
+        error: "HF_TOKEN belum dikonfigurasi"
+      });
+    }
+
+    const imageResponse = await fetch(imageUrl);
+
+    if (!imageResponse.ok) {
+      return res.status(400).json({
+        status: false,
+        error: "Gagal mengambil gambar dari URL",
+        http_status: imageResponse.status
+      });
+    }
+
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+    const form = new FormData();
+
+    form.append(
+      "image",
+      new Blob([imageBuffer], {
+        type: imageResponse.headers.get("content-type") || "image/jpeg"
+      }),
+      "input.jpg"
+    );
+
+    form.append("prompt", String(prompt));
+
+    const response = await fetch(
+      `https://api-inference.huggingface.co/models/${MODEL}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: form
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+
+      return res.status(response.status).json({
+        status: false,
+        error: text || `Hugging Face HTTP ${response.status}`
+      });
+    }
+
+    const resultBuffer = Buffer.from(
+      await response.arrayBuffer()
+    );
+
+    const contentType =
+      response.headers.get("content-type") || "image/png";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Length", resultBuffer.length);
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
+    );
+
+    return res.status(200).send(resultBuffer);
+
+  } catch (error) {
+    console.error("EDIT IMAGE ERROR:", error);
+
+    return res.status(500).json({
       status: false,
-      error: e.message || "Image editing failed"
+      error: error?.message || "Internal Server Error"
     });
   }
 }
