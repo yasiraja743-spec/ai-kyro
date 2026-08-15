@@ -6,22 +6,13 @@ export default async function handler(req, res) {
     });
   }
 
-  const API_KEY = process.env.PIXAZO_API_KEY;
-
-  if (!API_KEY) {
-    return res.status(500).json({
-      status: false,
-      error: "PIXAZO_API_KEY belum dikonfigurasi di Vercel Environment Variables"
-    });
-  }
-
   try {
     let body = {};
 
     if (req.method === "GET") {
       body = req.query || {};
     } else {
-      if (typeof req.body === "object") {
+      if (typeof req.body === "object" && req.body !== null) {
         body = req.body;
       } else {
         try {
@@ -32,13 +23,22 @@ export default async function handler(req, res) {
       }
     }
 
-    const image = String(body.image || "").trim();
-    const prompt = String(body.prompt || "").trim();
+    const imageUrl = String(
+      body.url ||
+      body.image ||
+      body.image_url ||
+      ""
+    ).trim();
 
-    if (!image) {
+    const prompt = String(
+      body.prompt ||
+      ""
+    ).trim();
+
+    if (!imageUrl) {
       return res.status(400).json({
         status: false,
-        error: "Parameter image wajib diisi"
+        error: "Parameter url wajib diisi"
       });
     }
 
@@ -49,186 +49,199 @@ export default async function handler(req, res) {
       });
     }
 
+    let parsedUrl;
+
     try {
-      new URL(image);
+      parsedUrl = new URL(imageUrl);
     } catch {
       return res.status(400).json({
         status: false,
-        error: "URL image tidak valid"
+        error: "URL gambar tidak valid"
       });
     }
 
-    const generateResponse = await fetch(
-      "https://gateway.pixazo.ai/p-image/v1/p-image-edit/generate",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-          "Ocp-Apim-Subscription-Key": API_KEY
-        },
-        body: JSON.stringify({
-          prompt,
-          images: [image]
-        })
-      }
-    );
+    // base64/data URI tidak bisa difetch oleh API pihak ketiga — foto harus
+    // sudah di-upload dulu (lihat /api/upload-image) supaya jadi URL http(s).
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return res.status(400).json({
+        status: false,
+        error:
+          "URL gambar harus berupa link http/https publik. Upload foto dulu lewat /api/upload-image untuk mendapatkan URL-nya."
+      });
+    }
 
-    const generateText = await generateResponse.text();
+    const apiUrl =
+      "https://api.ikyyxd.my.id/edit/nanobananav3" +
+      "?prompt=" +
+      encodeURIComponent(prompt) +
+      "&url=" +
+      encodeURIComponent(imageUrl);
 
-    let generateData;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    let apiResponse;
 
     try {
-      generateData = JSON.parse(generateText);
-    } catch {
-      generateData = {
-        raw: generateText
-      };
-    }
-
-    if (!generateResponse.ok) {
-      return res.status(generateResponse.status).json({
-        status: false,
-        error: "Pixazo gagal menerima request",
-        pixazo_status: generateResponse.status,
-        response: generateData
-      });
-    }
-
-    const requestId = generateData?.request_id;
-
-    if (!requestId) {
-      return res.status(502).json({
-        status: false,
-        error: "Pixazo tidak mengembalikan request_id",
-        response: generateData
-      });
-    }
-
-    const statusUrl =
-      `https://gateway.pixazo.ai/v2/requests/status/${encodeURIComponent(requestId)}`;
-
-    const maxAttempts = 30;
-    const delay = 2000;
-
-    let resultData = null;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, delay));
-
-      const statusResponse = await fetch(statusUrl, {
+      apiResponse = await fetch(apiUrl, {
         method: "GET",
         headers: {
-          "Cache-Control": "no-cache",
-          "Ocp-Apim-Subscription-Key": API_KEY
-        }
+          "Accept": "application/json,image/*,*/*"
+        },
+        signal: controller.signal
       });
-
-      const statusText = await statusResponse.text();
-
-      let statusData;
-
-      try {
-        statusData = JSON.parse(statusText);
-      } catch {
-        statusData = {
-          raw: statusText
-        };
-      }
-
-      if (!statusResponse.ok) {
-        return res.status(statusResponse.status).json({
-          status: false,
-          error: "Gagal mengecek status Pixazo",
-          pixazo_status: statusResponse.status,
-          response: statusData
-        });
-      }
-
-      resultData = statusData;
-
-      const currentStatus = String(
-        statusData?.status || ""
-      ).toUpperCase();
-
-      if (currentStatus === "COMPLETED") {
-        break;
-      }
-
-      if (
-        currentStatus === "FAILED" ||
-        currentStatus === "ERROR"
-      ) {
-        return res.status(502).json({
-          status: false,
-          error: "Pixazo gagal memproses gambar",
-          request_id: requestId,
-          pixazo_error: statusData?.error || null,
-          response: statusData
-        });
-      }
-    }
-
-    const finalStatus = String(
-      resultData?.status || ""
-    ).toUpperCase();
-
-    if (finalStatus !== "COMPLETED") {
+    } catch (fetchError) {
       return res.status(504).json({
         status: false,
-        error: "Waktu pemrosesan Pixazo habis",
-        request_id: requestId,
-        status: finalStatus || "UNKNOWN"
+        error: "Gagal menghubungi API edit foto (timeout/network error)",
+        detail: fetchError?.message || String(fetchError)
       });
+    } finally {
+      clearTimeout(timeout);
     }
 
-    const outputUrl =
-      resultData?.output?.media_url?.[0];
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text().catch(() => "");
 
-    if (!outputUrl) {
       return res.status(502).json({
         status: false,
-        error: "Pixazo selesai tetapi URL hasil gambar tidak ditemukan",
-        request_id: requestId,
-        response: resultData
-      });
-    }
-
-    const imageResponse = await fetch(outputUrl);
-
-    if (!imageResponse.ok) {
-      return res.status(502).json({
-        status: false,
-        error: "Gagal mengambil gambar hasil dari Pixazo",
-        http_status: imageResponse.status
+        error: "API Ikyyxd gagal",
+        upstream_status: apiResponse.status,
+        detail: errorText.slice(0, 2000)
       });
     }
 
     const contentType =
-      imageResponse.headers.get("content-type") ||
-      resultData?.output?.media_type ||
-      "image/jpeg";
+      apiResponse.headers.get("content-type") || "";
 
-    const buffer = Buffer.from(
-      await imageResponse.arrayBuffer()
-    );
+    if (contentType.includes("image/")) {
+      const imageBuffer = Buffer.from(
+        await apiResponse.arrayBuffer()
+      );
 
-    res.setHeader(
-      "Content-Type",
-      contentType
-    );
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Length", imageBuffer.length.toString());
+      res.setHeader("Cache-Control", "no-store");
 
-    res.setHeader(
-      "Content-Length",
-      buffer.length.toString()
-    );
+      return res.status(200).send(imageBuffer);
+    }
 
-    res.setHeader(
-      "Cache-Control",
-      "no-store"
-    );
+    const raw = await apiResponse.text();
 
-    return res.status(200).send(buffer);
+    let resultUrl = null;
+
+    try {
+      const data = JSON.parse(raw);
+
+      resultUrl =
+        data?.url ||
+        data?.result ||
+        data?.image ||
+        data?.image_url ||
+        data?.output ||
+        data?.output_url ||
+        data?.data?.url ||
+        data?.data?.result ||
+        data?.data?.image ||
+        data?.data?.image_url ||
+        data?.data?.output ||
+        data?.data?.output_url ||
+        data?.result?.url ||
+        data?.result?.image ||
+        null;
+
+      if (Array.isArray(data?.images)) {
+        resultUrl = resultUrl || data.images[0];
+      }
+
+      if (Array.isArray(data?.data)) {
+        resultUrl = resultUrl || data.data[0];
+      }
+
+      if (Array.isArray(data?.result)) {
+        resultUrl = resultUrl || data.result[0];
+      }
+
+    } catch {
+      const urlMatch = raw.match(/https?:\/\/[^\s"'<>]+/i);
+
+      if (urlMatch) {
+        resultUrl = urlMatch[0];
+      }
+    }
+
+    if (typeof resultUrl === "object" && resultUrl !== null) {
+      resultUrl =
+        resultUrl.url ||
+        resultUrl.image ||
+        resultUrl.image_url ||
+        resultUrl.output_url ||
+        null;
+    }
+
+    if (!resultUrl || typeof resultUrl !== "string") {
+      return res.status(502).json({
+        status: false,
+        error: "URL hasil gambar tidak ditemukan",
+        upstream_response: raw.slice(0, 5000)
+      });
+    }
+
+    if (resultUrl.startsWith("data:image/")) {
+      const match = resultUrl.match(/^data:(image\/[^;]+);base64,(.+)$/s);
+
+      if (!match) {
+        return res.status(502).json({
+          status: false,
+          error: "Format data:image tidak valid"
+        });
+      }
+
+      const buffer = Buffer.from(match[2], "base64");
+
+      res.setHeader("Content-Type", match[1]);
+      res.setHeader("Content-Length", buffer.length.toString());
+      res.setHeader("Cache-Control", "no-store");
+
+      return res.status(200).send(buffer);
+    }
+
+    try {
+      new URL(resultUrl);
+    } catch {
+      return res.status(502).json({
+        status: false,
+        error: "URL hasil gambar tidak valid",
+        result: resultUrl
+      });
+    }
+
+    const imageResponse = await fetch(resultUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "image/*,*/*"
+      }
+    });
+
+    if (!imageResponse.ok) {
+      return res.status(502).json({
+        status: false,
+        error: "Gagal mengambil gambar hasil",
+        image_status: imageResponse.status,
+        result_url: resultUrl
+      });
+    }
+
+    const outputBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+    const outputType =
+      imageResponse.headers.get("content-type") || "image/webp";
+
+    res.setHeader("Content-Type", outputType);
+    res.setHeader("Content-Length", outputBuffer.length.toString());
+    res.setHeader("Cache-Control", "no-store");
+
+    return res.status(200).send(outputBuffer);
 
   } catch (error) {
     console.error("EDIT PHOTO ERROR:", error);
