@@ -1,18 +1,19 @@
-import { hfToken } from "./_hf.js";
+import { InferenceClient } from "@huggingface/inference";
 
-const MODEL = "Qwen/Qwen-Image-Edit";
+const MODEL = "black-forest-labs/FLUX.2-klein-9B";
 
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
       return res.status(405).json({
         status: false,
-        error: "Method Not Allowed"
+        error: "Method Not Allowed",
+        allowed: ["GET"]
       });
     }
 
-    const imageUrl = String(req.query.image || "").trim();
-    const prompt = String(req.query.prompt || "").trim();
+    const imageUrl = String(req.query?.image || "").trim();
+    const prompt = String(req.query?.prompt || "").trim();
 
     if (!imageUrl) {
       return res.status(400).json({
@@ -28,7 +29,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const token = hfToken();
+    if (!/^https?:\/\//i.test(imageUrl)) {
+      return res.status(400).json({
+        status: false,
+        error: "image harus berupa URL http/https"
+      });
+    }
+
+    const token = process.env.HF_TOKEN;
 
     if (!token) {
       return res.status(500).json({
@@ -37,104 +45,76 @@ export default async function handler(req, res) {
       });
     }
 
-    let image;
+    const imageResponse = await fetch(imageUrl);
 
-    try {
-      image = await fetch(imageUrl);
-    } catch (error) {
+    if (!imageResponse.ok) {
       return res.status(400).json({
         status: false,
-        error: "Gagal download gambar dari URL",
-        detail: error.message
+        error: "Gagal mengambil gambar dari URL",
+        http_status: imageResponse.status
       });
     }
 
-    if (!image.ok) {
-      return res.status(400).json({
-        status: false,
-        error: "URL gambar tidak bisa diakses",
-        http_status: image.status
-      });
-    }
+    const inputType =
+      imageResponse.headers.get("content-type") || "image/jpeg";
 
-    const contentType =
-      image.headers.get("content-type") || "image/jpeg";
-
-    if (!contentType.startsWith("image/")) {
+    if (!inputType.startsWith("image/")) {
       return res.status(400).json({
         status: false,
         error: "URL tersebut bukan file gambar",
-        content_type: contentType
+        content_type: inputType
       });
     }
 
     const imageBuffer = Buffer.from(
-      await image.arrayBuffer()
+      await imageResponse.arrayBuffer()
     );
 
-    const form = new FormData();
+    const client = new InferenceClient(token);
 
-    form.append(
-      "image",
-      new Blob([imageBuffer], {
-        type: contentType
-      }),
-      "input.jpg"
-    );
-
-    form.append("prompt", prompt);
-
-    let hfResponse;
+    let output;
 
     try {
-      hfResponse = await fetch(
-        `https://api-inference.huggingface.co/models/${MODEL}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          body: form
+      output = await client.imageToImage({
+        provider: "fal-ai",
+        model: MODEL,
+        inputs: imageBuffer,
+        parameters: {
+          prompt
         }
-      );
+      });
     } catch (error) {
+      console.error("HF FAL-AI ERROR:", error);
+
       return res.status(503).json({
         status: false,
-        error: "Gagal menghubungi Hugging Face",
-        detail: error.message
+        error: "Gagal memproses gambar melalui HF fal-ai",
+        detail: error?.message || String(error),
+        model: MODEL,
+        provider: "fal-ai"
       });
     }
 
-    if (!hfResponse.ok) {
-      const errorText = await hfResponse.text();
-
-      return res.status(hfResponse.status).json({
-        status: false,
-        error: "Hugging Face gagal memproses gambar",
-        detail: errorText
-      });
-    }
-
-    const resultBuffer = Buffer.from(
-      await hfResponse.arrayBuffer()
+    const outputBuffer = Buffer.from(
+      await output.arrayBuffer()
     );
 
-    const resultType =
-      hfResponse.headers.get("content-type") ||
-      "image/png";
+    const outputType =
+      output.type || "image/png";
 
-    res.setHeader("Content-Type", resultType);
-    res.setHeader("Content-Length", resultBuffer.length);
+    res.setHeader("Content-Type", outputType);
+    res.setHeader("Content-Length", outputBuffer.length);
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", "inline");
 
-    return res.status(200).send(resultBuffer);
+    return res.status(200).send(outputBuffer);
 
   } catch (error) {
     console.error("EDIT PHOTO ERROR:", error);
 
     return res.status(500).json({
       status: false,
-      error: error.message || "Internal Server Error"
+      error: error?.message || "Internal Server Error"
     });
   }
 }
