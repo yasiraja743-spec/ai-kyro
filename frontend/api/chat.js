@@ -3,7 +3,7 @@ import { json, parseJson } from "./_hf.js";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-const OPENROUTER_MODEL = "openai/gpt-oss-20b:free";
+const OPENROUTER_MODEL = "openrouter/free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const REQUEST_TIMEOUT = 8000;
