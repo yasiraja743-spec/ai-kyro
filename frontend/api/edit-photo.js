@@ -148,6 +148,8 @@ export default async function handler(req, res) {
         data?.data?.output_url ||
         data?.result?.url ||
         data?.result?.image ||
+        data?.result?.result_url ||
+        data?.result?.output_url ||
         null;
 
       if (Array.isArray(data?.images)) {
@@ -176,6 +178,7 @@ export default async function handler(req, res) {
         resultUrl.image ||
         resultUrl.image_url ||
         resultUrl.output_url ||
+        resultUrl.result_url ||
         null;
     }
 
