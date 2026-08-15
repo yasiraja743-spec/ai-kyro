@@ -279,6 +279,141 @@
   }
   #offlineBanner.show{ display:flex; }
 
+  /* ---------- Mobile Safari / Chrome viewport fixes ---------- */
+  html{
+    height:100%;
+    height:100dvh;
+    min-height:100%;
+    overflow:hidden;
+  }
+  body{
+    width:100%;
+    height:100%;
+    height:100dvh;
+    min-height:100%;
+    min-height:100dvh;
+    overflow:hidden;
+    overscroll-behavior:none;
+    -webkit-text-size-adjust:100%;
+  }
+  #appShell{
+    height:100%;
+    height:100dvh;
+    min-height:0;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  #mainArea{
+    height:100%;
+    height:100dvh;
+    min-height:0;
+  }
+  #topBar{
+    flex-shrink:0;
+    padding-top:max(14px, env(safe-area-inset-top));
+  }
+  .content-wrap{
+    min-height:0;
+    height:calc(100dvh - 58px);
+    padding-bottom:0;
+  }
+  #dashboard{
+    min-height:0;
+    height:100%;
+  }
+  #chatLog{
+    min-height:0;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:24px;
+    scrollbar-gutter:stable;
+  }
+  #composer{
+    flex-shrink:0;
+    padding-bottom:max(12px, env(safe-area-inset-bottom));
+    background:linear-gradient(to top, var(--bg) 75%, transparent);
+  }
+  .input-row{
+    min-width:0;
+  }
+  .input-row textarea{
+    min-width:0;
+    width:100%;
+  }
+  .msg,
+  .msg-row{
+    min-width:0;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  .msg.ai{
+    max-width:100%;
+  }
+  .code-block{
+    max-width:100%;
+  }
+  .code-view{
+    max-width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .code-view pre{
+    min-width:max-content;
+  }
+  .preview-view{
+    width:100%;
+    overflow:hidden;
+  }
+  .preview-view iframe{
+    max-width:100%;
+  }
+  @supports not (height: 100dvh){
+    html,body,#appShell,#mainArea{height:100%;}
+    .content-wrap{height:calc(100vh - 58px);}
+  }
+  @media(max-width: 899px){
+    .content-wrap{
+      max-width:none;
+      padding-left:12px;
+      padding-right:12px;
+    }
+    #chatLog{
+      padding-left:0;
+      padding-right:0;
+    }
+    .msg,
+    .msg-row{
+      max-width:92%;
+    }
+    .input-row{
+      gap:5px;
+      padding-left:8px;
+    }
+    #modelBtn{
+      max-width:96px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #chatSendBtn{
+      padding-left:12px;
+      padding-right:12px;
+    }
+    #chatSendBtn span{display:none;}
+    #chatSendBtn svg{margin:0;}
+  }
+  @media(max-width: 430px){
+    .content-wrap{
+      padding-left:8px;
+      padding-right:8px;
+    }
+    #topBar{padding-left:10px;padding-right:10px;}
+    #chatLog{gap:10px;}
+    .msg{font-size:14px;padding:11px 13px;}
+    .input-row{border-radius:20px;}
+    #plusBtn{width:32px;height:32px;}
+    #modelBtn{font-size:11px;padding:0 8px;height:32px;max-width:86px;}
+    #chatSendBtn{width:34px;height:34px;padding:0;justify-content:center;border-radius:50%;}
+  }
+
   @media(min-width: 900px){
     #sidebar{ transform: none; position:sticky; top:0; height:100%; width:300px; box-shadow: 2px 0 20px rgba(0,0,0,0.35); }
     #sidebarOverlay{ display:none !important; }
@@ -1169,30 +1304,36 @@ function splitIntoRevealSegments(text){
 
 async function revealText(div, text){
   div.innerHTML = '';
+
   const segments = splitIntoRevealSegments(text);
   let accumulated = '';
+
   for(const seg of segments){
     if(seg.type === 'block'){
-      // blok kode/[package] ditampilin utuh sekaligus (bukan diketik parsial),
-      // biar nggak kelihatan kode setengah jadi / rusak pas lagi "diketik"
       accumulated += seg.content;
-      try{ div.innerHTML = renderMarkdown(accumulated); } catch(err){ div.textContent = accumulated; }
+      try{ div.innerHTML = renderMarkdown(accumulated); }
+      catch(err){ div.textContent = accumulated; }
       followScroll();
-      await sleep(120);
-    } else {
-      const words = seg.content.split(' ').filter(w => w !== '');
-      const perWord = Math.max(6, Math.min(35, 1800 / Math.max(words.length, 1)));
-      let shown = '';
-      for(const w of words){
-        shown += (shown ? ' ' : '') + w;
-        try{ div.innerHTML = renderMarkdown(accumulated + shown); } catch(err){ div.textContent = accumulated + shown; }
-        followScroll();
-        await sleep(perWord);
-      }
-      accumulated += seg.content;
+      await new Promise(r => requestAnimationFrame(r));
+      continue;
     }
+
+    const words = seg.content.split(/(\s+)/);
+    let shown = '';
+
+    for(let i = 0; i < words.length; i += 3){
+      shown += words.slice(i, i + 3).join('');
+      try{ div.innerHTML = renderMarkdown(accumulated + shown); }
+      catch(err){ div.textContent = accumulated + shown; }
+      followScroll();
+      await new Promise(r => requestAnimationFrame(r));
+    }
+
+    accumulated += seg.content;
   }
-  try{ div.innerHTML = renderMarkdown(text); } catch(err){ div.textContent = text; }
+
+  try{ div.innerHTML = renderMarkdown(text); }
+  catch(err){ div.textContent = text; }
   followScroll();
 }
 
@@ -1428,9 +1569,22 @@ async function runAiCompletion(targetConvId, q){
     const res = await fetch(API.chat, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: promptWithContext })
+      body: JSON.stringify({ question: q })
     });
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    if(!res.ok){
+      let message = `HTTP ${res.status}`;
+      try{
+        const errorData = await res.json();
+        message = errorData?.error || errorData?.message || message;
+        if(errorData?.providers){
+          const details = Object.entries(errorData.providers)
+            .map(([name, value]) => `${name}: ${value}`)
+            .join(' | ');
+          if(details) message += ` — ${details}`;
+        }
+      }catch{}
+      throw new Error(message);
+    }
     const data = await res.json();
     if(!data.status) throw new Error(data.error || 'Backend error');
     const answer = data.result || 'Maaf, tidak ada jawaban.';
