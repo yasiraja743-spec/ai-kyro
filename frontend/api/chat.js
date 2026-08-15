@@ -6,9 +6,8 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const OPENROUTER_MODEL = "openrouter/free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
-const REQUEST_TIMEOUT = 8000;
-const MAX_TOKENS = 12288;
-
+const REQUEST_TIMEOUT = 15000;
+const MAX_TOKENS = 6000;
 const SYSTEM_PROMPT = `
 Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
 
