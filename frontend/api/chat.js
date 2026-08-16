@@ -1,13 +1,18 @@
+import OpenAI from "openai";
 import { json, parseJson } from "./_hf.js";
 
+const XKIRO_API_KEY = process.env.XKIRO_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
+const DEEPSEEK_MODEL = "deepseek/deepseek-v4-pro-0813";
 const OPENROUTER_MODEL = "openrouter/free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
-const REQUEST_TIMEOUT = 15000;
-const MAX_TOKENS = 6000;
+const DEEPSEEK_TIMEOUT = 15000;
+const OPENROUTER_TIMEOUT = 15000;
+const GROQ_TIMEOUT = 8000;
+
 const SYSTEM_PROMPT = `
 Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
 
@@ -42,18 +47,18 @@ ATURAN FILE DAN KODE:
 2. Nama file harus tepat setelah [package].
 3. Untuk beberapa file, gunakan package terpisah.
 4. Jangan menggunakan triple backtick untuk file yang menggunakan format [package].
-5. Jangan memasukkan reasoning ke dalam package.
+5. Jangan menambahkan reasoning di dalam package.
 6. Jangan memotong kode dengan "...", "dst", atau placeholder.
 7. Berikan kode lengkap dan siap digunakan.
 8. Jangan berhenti di tengah kode.
-9. Jika pengguna meminta website HTML lengkap tanpa menentukan file terpisah, utamakan satu [package]index.html yang berisi HTML, CSS, dan JavaScript.
+9. Jika pengguna meminta website HTML lengkap tanpa menentukan file terpisah, utamakan satu [package]index.html yang berisi HTML, CSS, dan JavaScript sekaligus.
 10. Jangan memasukkan [package] atau [/package] ke dalam kode file itu sendiri.
 11. Output yang terlihat pengguna harus hanya jawaban final.
 
 Jangan pernah menampilkan proses berpikir internal.
 `;
 
-function timeoutSignal(ms) {
+function createTimeout(ms) {
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
@@ -66,19 +71,57 @@ function timeoutSignal(ms) {
   };
 }
 
-async function parseResponse(response) {
-  const text = await response.text();
-
-  if (!text) {
-    return {};
+async function requestDeepSeek(messages) {
+  if (!XKIRO_API_KEY) {
+    throw new Error("XKIRO_API_KEY belum dikonfigurasi");
   }
 
+  const timeout = createTimeout(DEEPSEEK_TIMEOUT);
+
   try {
-    return JSON.parse(text);
-  } catch {
+    const client = new OpenAI({
+      apiKey: XKIRO_API_KEY,
+      baseURL: "https://api.xkiro.com/v1",
+      timeout: DEEPSEEK_TIMEOUT
+    });
+
+    const response = await client.chat.completions.create(
+      {
+        model: DEEPSEEK_MODEL,
+        messages,
+        temperature: 0.7,
+        max_tokens: 12000
+      },
+      {
+        signal: timeout.signal
+      }
+    );
+
+    const result =
+      response?.choices?.[0]?.message?.content || "";
+
+    if (!result) {
+      throw new Error(
+        "DeepSeek tidak mengembalikan hasil"
+      );
+    }
+
     return {
-      raw: text
+      result,
+      provider: "xkiro",
+      model:
+        response?.model || DEEPSEEK_MODEL
     };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(
+        `DeepSeek timeout setelah ${DEEPSEEK_TIMEOUT}ms`
+      );
+    }
+
+    throw error;
+  } finally {
+    timeout.clear();
   }
 }
 
@@ -89,7 +132,9 @@ async function requestOpenRouter(messages) {
     );
   }
 
-  const timeout = timeoutSignal(REQUEST_TIMEOUT);
+  const timeout = createTimeout(
+    OPENROUTER_TIMEOUT
+  );
 
   try {
     const response = await fetch(
@@ -98,21 +143,33 @@ async function requestOpenRouter(messages) {
         method: "POST",
         signal: timeout.signal,
         headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          Authorization:
+            `Bearer ${OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://ai-kyro.vercel.app",
+          "HTTP-Referer":
+            "https://ai-kyro.vercel.app",
           "X-Title": "NOVA AI"
         },
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           messages,
           temperature: 0.7,
-          max_tokens: MAX_TOKENS
+          max_tokens: 12000
         })
       }
     );
 
-    const data = await parseResponse(response);
+    const text = await response.text();
+
+    let data = {};
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {
+        raw: text
+      };
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -137,12 +194,13 @@ async function requestOpenRouter(messages) {
     return {
       result,
       provider: "openrouter",
-      model: data?.model || OPENROUTER_MODEL
+      model:
+        data?.model || OPENROUTER_MODEL
     };
   } catch (error) {
     if (error?.name === "AbortError") {
       throw new Error(
-        `OpenRouter timeout setelah ${REQUEST_TIMEOUT}ms`
+        `OpenRouter timeout setelah ${OPENROUTER_TIMEOUT}ms`
       );
     }
 
@@ -159,7 +217,7 @@ async function requestGroq(messages) {
     );
   }
 
-  const timeout = timeoutSignal(REQUEST_TIMEOUT);
+  const timeout = createTimeout(GROQ_TIMEOUT);
 
   try {
     const response = await fetch(
@@ -168,19 +226,30 @@ async function requestGroq(messages) {
         method: "POST",
         signal: timeout.signal,
         headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
+          Authorization:
+            `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
           messages,
           temperature: 0.7,
-          max_tokens: MAX_TOKENS
+          max_tokens: 6000
         })
       }
     );
 
-    const data = await parseResponse(response);
+    const text = await response.text();
+
+    let data = {};
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {
+        raw: text
+      };
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -205,12 +274,13 @@ async function requestGroq(messages) {
     return {
       result,
       provider: "groq",
-      model: data?.model || GROQ_MODEL
+      model:
+        data?.model || GROQ_MODEL
     };
   } catch (error) {
     if (error?.name === "AbortError") {
       throw new Error(
-        `Groq timeout setelah ${REQUEST_TIMEOUT}ms`
+        `Groq timeout setelah ${GROQ_TIMEOUT}ms`
       );
     }
 
@@ -258,7 +328,28 @@ export default async function handler(req, res) {
       }
     ];
 
-    let openRouterError = null;
+    const errors = {};
+
+    try {
+      const result =
+        await requestDeepSeek(messages);
+
+      return json(res, 200, {
+        status: true,
+        provider: result.provider,
+        model: result.model,
+        result: result.result
+      });
+    } catch (error) {
+      errors.deepseek =
+        error?.message ||
+        "DeepSeek gagal";
+
+      console.error(
+        "DEEPSEEK FAILED:",
+        errors.deepseek
+      );
+    }
 
     try {
       const result =
@@ -268,20 +359,20 @@ export default async function handler(req, res) {
         status: true,
         provider: result.provider,
         model: result.model,
-        result: result.result
+        result: result.result,
+        fallback: true,
+        fallback_from: "deepseek"
       });
     } catch (error) {
-      openRouterError =
+      errors.openrouter =
         error?.message ||
         "OpenRouter gagal";
 
       console.error(
         "OPENROUTER FAILED:",
-        openRouterError
+        errors.openrouter
       );
     }
-
-    let groqError = null;
 
     try {
       const result =
@@ -293,28 +384,24 @@ export default async function handler(req, res) {
         model: result.model,
         result: result.result,
         fallback: true,
-        fallback_from: "openrouter"
+        fallback_from: "deepseek+openrouter"
       });
     } catch (error) {
-      groqError =
+      errors.groq =
         error?.message ||
         "Groq gagal";
 
       console.error(
         "GROQ FAILED:",
-        groqError
+        errors.groq
       );
     }
 
     return json(res, 503, {
       status: false,
       error: "Semua AI provider gagal",
-      providers: {
-        openrouter: openRouterError,
-        groq: groqError
-      }
+      providers: errors
     });
-
   } catch (error) {
     console.error(
       "NOVA AI ERROR:",
