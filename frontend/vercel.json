@@ -1,17 +1,5 @@
 {
   "version": 2,
   "buildCommand": "true",
-  "installCommand": "true",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1.js"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  "outputDirectory": "frontend"
 }
