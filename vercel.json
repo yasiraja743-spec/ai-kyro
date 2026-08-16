@@ -1,10 +1,21 @@
 {
   "version": 2,
-  "buildCommand": "",
-  "outputDirectory": ".",
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/api-docs.html",
+      "destination": "/api-docs",
+      "permanent": true
+    },
+    {
+      "source": "/chat.html",
+      "destination": "/chat",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
     }
-  }
+  ]
 }
