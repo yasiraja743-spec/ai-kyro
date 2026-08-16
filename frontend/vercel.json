@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "functions": {
-    "api/edit-photo.js": { "maxDuration": 60 },
-    "api/generate-image.js": { "maxDuration": 60 },
-    "api/upload-image.js": { "maxDuration": 30 },
-    "api/chat.js": { "maxDuration": 30 }
-  }
-}
