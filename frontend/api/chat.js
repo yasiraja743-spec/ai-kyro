@@ -174,7 +174,7 @@ async function createOpenRouterRequest(messages) {
         messages,
         stream: true,
         temperature: 0.7,
-        max_tokens: 12000
+        max_tokens: 16000
       })
     }
   );
