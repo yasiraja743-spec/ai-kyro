@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Api Document — NOVA AI</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0C12;
+    --surface: #12141C;
+    --surface-2: #191C27;
+    --border: #2A2E3D;
+    --accent: #D4AF37;
+    --accent-2: #F3D477;
+    --accent-soft: rgba(212,175,55,0.14);
+    --text: #F4F1E8;
+    --muted: #93917F;
+  }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{ min-height:100%; }
+  body{
+    background:
+      radial-gradient(1100px 620px at 12% -8%, rgba(212,175,55,0.10), transparent 55%),
+      radial-gradient(900px 560px at 100% 0%, rgba(212,175,55,0.06), transparent 50%),
+      var(--bg);
+    color: var(--text);
+    font-family:'Inter', sans-serif;
+  }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background: var(--border); border-radius:10px; }
+  ::-webkit-scrollbar-thumb:hover{ background: var(--accent); }
+
+  #topBar{ display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--border); background: var(--surface); position:sticky; top:0; z-index:10; }
+  .logo{ display:flex; align-items:center; gap:9px; font-family:'Space Grotesk'; font-weight:700; font-size:16px; }
+  .logo .dot{ width:9px; height:9px; border-radius:50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow:0 0 12px rgba(212,175,55,0.65); }
+  #backBtn{
+    background: var(--surface-2); border:1px solid var(--border); color:var(--text);
+    padding:8px 13px; border-radius:12px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Inter';
+    display:flex; align-items:center; gap:6px; text-decoration:none; margin-left:auto;
+  }
+  #backBtn:hover{ border-color: var(--accent); color: var(--accent-2); }
+
+  .wrap{ max-width:720px; margin:0 auto; padding: 28px 20px 60px; }
+  .page-head{ margin-bottom:24px; }
+  .page-head h1{ font-family:'Space Grotesk'; font-size:24px; font-weight:700; }
+  .page-head p{ color:var(--muted); font-size:13.5px; margin-top:6px; line-height:1.5; }
+
+  .doc-page{ display:flex; flex-direction:column; gap:20px; animation: fadeIn .2s ease; }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+  .doc-card{ background: var(--surface); border:1px solid var(--border); border-radius:18px; padding:22px; }
+  .doc-card-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .doc-method{ font-family:'JetBrains Mono'; font-size:11px; font-weight:700; padding:3px 9px; border-radius:7px; letter-spacing:0.5px; }
+  .doc-method.get{ background: rgba(74,166,255,0.15); color:#7EB8FF; }
+  .doc-method.post{ background: var(--accent-soft); color: var(--accent-2); }
+  .doc-endpoint{ font-family:'JetBrains Mono'; font-size:12.5px; color:var(--text); word-break:break-all; }
+  .doc-card h2{ font-family:'Space Grotesk'; font-size:19px; font-weight:700; margin:10px 0 4px; }
+  .doc-card .doc-desc{ color:var(--muted); font-size:13.5px; line-height:1.6; margin-bottom:14px; }
+  .doc-params{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:16px; }
+  .doc-params th{ text-align:left; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border); text-transform:uppercase; font-size:10.5px; letter-spacing:0.5px; }
+  .doc-params td{ padding:8px; border-bottom:1px solid var(--border); }
+  .doc-params td:first-child{ font-family:'JetBrains Mono'; color: var(--accent-2); }
+  .doc-code{ background: var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; position:relative; margin-bottom:6px; }
+  .doc-code pre{ font-family:'JetBrains Mono'; font-size:12px; color:var(--text); white-space:pre-wrap; word-break:break-all; padding-right:60px; }
+  .doc-code .copy-btn{ position:absolute; top:9px; right:9px; }
+  .copy-btn{ background:none; border:1px solid var(--border); color:var(--muted); font-size:11px; padding:4px 10px; border-radius:8px; cursor:pointer; font-family:'Inter'; }
+  .copy-btn:hover{ color: var(--accent-2); border-color: var(--accent); }
+
+  .doc-try{ border-top:1px solid var(--border); margin-top:16px; padding-top:16px; }
+  .doc-try h3{ font-family:'Space Grotesk'; font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:7px; }
+  .doc-try h3 svg{ color: var(--accent-2); }
+  .doc-field{ margin-bottom:12px; }
+  .doc-field label{ display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; font-weight:600; }
+  .doc-field input, .doc-field textarea{
+    width:100%; background: var(--surface-2); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:10px; font-size:13.5px; font-family:'Inter'; resize:vertical;
+  }
+  .doc-field input:focus, .doc-field textarea:focus{ outline:none; border-color: var(--accent); }
+  .doc-try-btn{
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#1A1406; font-weight:700;
+    border:none; padding:10px 20px; border-radius:12px; cursor:pointer; font-size:13.5px; font-family:'Inter';
+    box-shadow: 0 8px 20px rgba(212,175,55,0.28); display:flex; align-items:center; gap:7px;
+  }
+  .doc-try-btn:hover{ filter:brightness(1.08); }
+  .doc-try-btn:disabled{ opacity:0.55; cursor:not-allowed; }
+
+  .doc-url-box{ margin-top:14px; background: var(--surface-2); border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:11px 14px; display:none; }
+  .doc-url-box.show{ display:block; }
+  .doc-url-box .doc-response-label{ color: var(--accent-2); }
+  .doc-url-box pre{ font-family:'JetBrains Mono'; font-size:12px; white-space:pre-wrap; word-break:break-all; }
+
+  .doc-response{ margin-top:10px; background: var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:none; }
+  .doc-response.show{ display:block; }
+  .doc-response pre{ font-family:'JetBrains Mono'; font-size:12px; white-space:pre-wrap; word-break:break-word; max-height:280px; overflow:auto; }
+  .doc-response img{ max-width:100%; border-radius:10px; display:block; }
+  .doc-response-label{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px; font-weight:600; }
+
+  #docsPagination{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:26px; }
+  .doc-page-btn{
+    width:34px; height:34px; border-radius:10px; border:1px solid var(--border); background: var(--surface);
+    color:var(--muted); cursor:pointer; font-size:13px; font-weight:600; font-family:'Inter';
+    display:flex; align-items:center; justify-content:center;
+  }
+  .doc-page-btn:hover{ border-color: var(--accent); color: var(--accent-2); }
+  .doc-page-btn.active{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#1A1406; border-color:transparent; }
+  .doc-page-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+</style>
+</head>
+<body>
+
+<div id="topBar">
+  <div class="logo"><span class="dot"></span> NOVA</div>
+  <a id="backBtn" href="/index.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Kembali ke Chat</a>
+</div>
+
+<div class="wrap">
+  <div class="page-head">
+    <h1>Api Document</h1>
+    <p>Daftar endpoint NOVA AI beserta cara pakai &amp; try-it langsung. Semua endpoint mendukung GET dengan query string.</p>
+  </div>
+  <div id="docsBody"></div>
+  <div id="docsPagination"></div>
+</div>
+
+<script>
+const API_DOCS = [
+  {
+    id: 'chat',
+    title: 'Chat AI',
+    method: 'GET',
+    endpoint: '/api/chat',
+    desc: 'Kirim pertanyaan ke NOVA AI dan dapatkan jawaban teks. Otomatis fallback ke provider cadangan kalau provider utama gagal.',
+    params: [
+      { name: 'question', type: 'string', required: true, desc: 'Pertanyaan / pesan yang dikirim ke AI' }
+    ],
+    fields: [
+      { key: 'question', label: 'Question', type: 'textarea', placeholder: 'Tulis pertanyaan...', value: 'hai' }
+    ],
+    buildUrl: (values) => `${location.origin}/api/chat?question=${encodeURIComponent(values.question)}`,
+    run: async (url) => {
+      const res = await fetch(url);
+      const data = await res.json();
+      return { kind: 'json', ok: res.ok, data };
+    }
+  },
+  {
+    id: 'generate-image',
+    title: 'Generate Image',
+    method: 'GET',
+    endpoint: '/api/generate-image',
+    desc: 'Buat gambar baru dari deskripsi teks (text-to-image). Respon berupa file gambar langsung.',
+    params: [
+      { name: 'prompt', type: 'string', required: true, desc: 'Deskripsi gambar yang ingin dibuat' }
+    ],
+    fields: [
+      { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: 'Deskripsikan gambar...', value: 'pemandangan gunung saat matahari terbit' }
+    ],
+    buildUrl: (values) => `${location.origin}/api/generate-image?prompt=${encodeURIComponent(values.prompt)}`,
+    run: async (url) => {
+      const res = await fetch(url);
+      if(!res.ok){
+        let errData = { error: `HTTP ${res.status}` };
+        try{ errData = await res.json(); } catch{}
+        return { kind: 'json', ok: false, data: errData };
+      }
+      const blob = await res.blob();
+      const dataUrl = await blobToDataURL(blob);
+      return { kind: 'image', ok: true, dataUrl };
+    }
+  },
+  {
+    id: 'edit-photo',
+    title: 'Edit Photo',
+    method: 'GET',
+    endpoint: '/api/edit-photo',
+    desc: 'Edit foto yang sudah ada berdasarkan instruksi teks. Butuh URL gambar publik (upload dulu lewat /api/upload-image kalau fotonya dari perangkatmu).',
+    params: [
+      { name: 'url', type: 'string', required: true, desc: 'URL publik (http/https) gambar yang mau diedit' },
+      { name: 'prompt', type: 'string', required: true, desc: 'Instruksi edit, contoh: "buat jadi gaya kartun"' }
+    ],
+    fields: [
+      { key: 'url', label: 'Image URL', type: 'input', placeholder: 'https://contoh.com/foto.jpg', value: '' },
+      { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: 'Instruksi edit...', value: 'buat jadi gaya kartun' }
+    ],
+    buildUrl: (values) => `${location.origin}/api/edit-photo?url=${encodeURIComponent(values.url)}&prompt=${encodeURIComponent(values.prompt)}`,
+    run: async (url) => {
+      const res = await fetch(url);
+      if(!res.ok){
+        let errData = { error: `HTTP ${res.status}` };
+        try{ errData = await res.json(); } catch{}
+        return { kind: 'json', ok: false, data: errData };
+      }
+      const blob = await res.blob();
+      const dataUrl = await blobToDataURL(blob);
+      return { kind: 'image', ok: true, dataUrl };
+    }
+  }
+];
+
+function blobToDataURL(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Gagal membaca file'));
+    reader.readAsDataURL(blob);
+  });
+}
+function escapeHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let docsCurrentPage = 0;
+
+function renderDocsPage(){
+  const doc = API_DOCS[docsCurrentPage];
+  const body = document.getElementById('docsBody');
+  body.innerHTML = `
+    <div class="doc-page">
+      <div class="doc-card">
+        <div class="doc-card-head">
+          <span class="doc-method ${doc.method.toLowerCase()}">${doc.method}</span>
+          <span class="doc-endpoint">${doc.endpoint}</span>
+        </div>
+        <h2>${doc.title}</h2>
+        <p class="doc-desc">${doc.desc}</p>
+        <table class="doc-params">
+          <thead><tr><th>Parameter</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            ${doc.params.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.required ? 'Ya' : 'Tidak'}</td><td>${p.desc}</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="doc-code">
+          <pre><code id="docExampleUrl"></code></pre>
+          <button class="copy-btn doc-copy-code" type="button">Copy</button>
+        </div>
+        <div class="doc-try">
+          <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Coba Sekarang</h3>
+          <div class="doc-fields">
+            ${doc.fields.map(f => `
+              <div class="doc-field">
+                <label>${f.label}</label>
+                ${f.type === 'textarea'
+                  ? `<textarea data-key="${f.key}" rows="2" placeholder="${f.placeholder}">${f.value || ''}</textarea>`
+                  : `<input data-key="${f.key}" type="text" placeholder="${f.placeholder}" value="${f.value || ''}">`}
+              </div>
+            `).join('')}
+          </div>
+          <button class="doc-try-btn" id="docTryBtn">
+            <span id="docTryBtnLabel">Submit Query</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+          <div class="doc-url-box" id="docUrlBox">
+            <div class="doc-response-label">Request URL</div>
+            <pre id="docUrlText"></pre>
+          </div>
+          <div class="doc-response" id="docResponse"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  function currentValues(){
+    const values = {};
+    body.querySelectorAll('.doc-field [data-key]').forEach(el => { values[el.dataset.key] = el.value.trim(); });
+    return values;
+  }
+  function updateExampleUrl(){
+    const values = {};
+    doc.fields.forEach(f => { values[f.key] = f.value || `<${f.key}>`; });
+    document.getElementById('docExampleUrl').textContent = doc.buildUrl(values);
+  }
+  updateExampleUrl();
+
+  body.querySelector('.doc-copy-code').addEventListener('click', (e) => {
+    navigator.clipboard.writeText(document.getElementById('docExampleUrl').textContent);
+    e.target.textContent = 'Copied!';
+    setTimeout(() => { e.target.textContent = 'Copy'; }, 1500);
+  });
+
+  const tryBtn = document.getElementById('docTryBtn');
+  const urlBox = document.getElementById('docUrlBox');
+  const urlText = document.getElementById('docUrlText');
+  const respBox = document.getElementById('docResponse');
+
+  tryBtn.addEventListener('click', async () => {
+    const values = currentValues();
+    const missing = doc.params.filter(p => p.required && !values[p.name]);
+    if(missing.length){
+      urlBox.classList.remove('show');
+      respBox.classList.add('show');
+      respBox.innerHTML = `<div class="doc-response-label">Error</div><pre>Parameter wajib belum diisi: ${missing.map(m => m.name).join(', ')}</pre>`;
+      return;
+    }
+
+    const fullUrl = doc.buildUrl(values);
+    urlBox.classList.add('show');
+    urlText.textContent = fullUrl;
+
+    tryBtn.disabled = true;
+    document.getElementById('docTryBtnLabel').textContent = 'Memuat...';
+    respBox.classList.add('show');
+    respBox.innerHTML = `<div class="doc-response-label">Response</div><pre>Menunggu respon...</pre>`;
+
+    try{
+      const result = await doc.run(fullUrl);
+      if(result.kind === 'image'){
+        respBox.innerHTML = `<div class="doc-response-label">Response (${result.ok ? '200 OK' : 'Error'})</div><img src="${result.dataUrl}" alt="Hasil">`;
+      } else {
+        respBox.innerHTML = `<div class="doc-response-label">Response</div><pre>${escapeHtml(JSON.stringify(result.data, null, 2))}</pre>`;
+      }
+    } catch(e){
+      respBox.innerHTML = `<div class="doc-response-label">Error</div><pre>${escapeHtml(e.message || String(e))}</pre>`;
+    } finally {
+      tryBtn.disabled = false;
+      document.getElementById('docTryBtnLabel').textContent = 'Submit Query';
+    }
+  });
+
+  renderDocsPagination();
+}
+
+function renderDocsPagination(){
+  const pag = document.getElementById('docsPagination');
+  let html = `<button class="doc-page-btn" id="docsPrevBtn" ${docsCurrentPage === 0 ? 'disabled' : ''}>&lsaquo;</button>`;
+  API_DOCS.forEach((d, i) => {
+    html += `<button class="doc-page-btn ${i === docsCurrentPage ? 'active' : ''}" data-page="${i}">${i + 1}</button>`;
+  });
+  html += `<button class="doc-page-btn" id="docsNextBtn" ${docsCurrentPage === API_DOCS.length - 1 ? 'disabled' : ''}>&rsaquo;</button>`;
+  pag.innerHTML = html;
+
+  pag.querySelectorAll('[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => { docsCurrentPage = parseInt(btn.dataset.page, 10); renderDocsPage(); window.scrollTo({ top:0, behavior:'smooth' }); });
+  });
+  const prevBtn = document.getElementById('docsPrevBtn');
+  const nextBtn = document.getElementById('docsNextBtn');
+  if(prevBtn) prevBtn.addEventListener('click', () => { if(docsCurrentPage > 0){ docsCurrentPage--; renderDocsPage(); window.scrollTo({ top:0, behavior:'smooth' }); } });
+  if(nextBtn) nextBtn.addEventListener('click', () => { if(docsCurrentPage < API_DOCS.length - 1){ docsCurrentPage++; renderDocsPage(); window.scrollTo({ top:0, behavior:'smooth' }); } });
+}
+
+renderDocsPage();
+</script>
+</body>
+</html>
