@@ -7,7 +7,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 const DEEPSEEK_MODEL = "qwen/qwen3.8-max";
-const OPENROUTER_MODEL = "liquid/lfm-2.5-embedding-350m:free";
+const OPENROUTER_MODEL = "openrouter/free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const SYSTEM_PROMPT = `
@@ -61,6 +61,22 @@ function getQuestion(req, body) {
   }
 
   return String(body?.question || "").trim();
+}
+
+function getImageUrl(req, body) {
+  if (req.method === "GET") {
+    return String(req.query?.image_url || req.query?.imageUrl || "").trim();
+  }
+  return String(body?.image_url || body?.imageUrl || "").trim();
+}
+
+function isValidImageUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function wantsStream(req, body) {
@@ -148,6 +164,51 @@ async function createDeepSeekRequest(messages) {
   }
 
   return response;
+}
+
+async function createOpenRouterVisionRequest(question, imageUrl) {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY belum dikonfigurasi");
+  }
+
+  const response = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://ai-kyro.vercel.app",
+        "X-Title": "NOVA AI"
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: question || "Analisis gambar ini secara detail. Jelaskan apa yang terlihat, teks yang terbaca, objek penting, dan hal relevan lainnya."
+              },
+              {
+                type: "image_url",
+                image_url: { url: imageUrl }
+              }
+            ]
+          }
+        ],
+        temperature: 0.4,
+        max_tokens: 12000
+      })
+    }
+  );
+
+  const data = await readJsonResponse(response, "OpenRouter Vision");
+  const result = extractContent(data);
+  if (!result) throw new Error("OpenRouter Vision tidak mengembalikan hasil");
+  return { result, model: data?.model || OPENROUTER_MODEL };
 }
 
 async function createOpenRouterRequest(messages) {
@@ -549,11 +610,40 @@ export default async function handler(req, res) {
     const question =
       getQuestion(req, body);
 
-    if (!question) {
+    const imageUrl = getImageUrl(req, body);
+
+    if (!question && !imageUrl) {
       return json(res, 400, {
         status: false,
-        error: "question wajib diisi"
+        error: "question atau image_url wajib diisi"
       });
+    }
+
+    if (imageUrl && !isValidImageUrl(imageUrl)) {
+      return json(res, 400, {
+        status: false,
+        error: "image_url harus berupa URL http/https yang valid"
+      });
+    }
+
+    if (imageUrl) {
+      try {
+        const vision = await createOpenRouterVisionRequest(question, imageUrl);
+        return json(res, 200, {
+          status: true,
+          provider: "openrouter",
+          model: vision.model,
+          result: vision.result,
+          vision: true
+        });
+      } catch (error) {
+        console.error("VISION FAILED:", error?.message || error);
+        return json(res, 503, {
+          status: false,
+          error: "Gagal menganalisis gambar",
+          detail: error?.message || "OpenRouter Vision gagal"
+        });
+      }
     }
 
     const messages = [
