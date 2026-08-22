@@ -12,8 +12,13 @@ const OPENROUTER_MODEL = "openrouter/free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
 // dipakai kalau openrouter/free gagal analisis gambar (router kadang milih model
-// yang bukan vision) — model ini konsisten free & vision-capable per Agustus 2026.
-const VISION_FALLBACK_MODEL = "google/gemma-4-31b-it:free";
+// yang bukan vision, atau kadang ngasih jawaban ngasal "gambar kosong") — dicoba
+// berurutan sampai salah satu beneran ngembaliin hasil yang masuk akal.
+const VISION_MODEL_CHAIN = [
+  OPENROUTER_MODEL,
+  "google/gemma-4-31b-it:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+];
 
 const SYSTEM_PROMPT = `
 Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
@@ -86,6 +91,18 @@ const WEB_SEARCH_RE = new RegExp(
   "i"
 );
 
+// pola jawaban "ngasal" yang sering muncul kalau model vision sebenarnya gak
+// kebagian data gambar (upload gagal / URL gak keakses / router milih model
+// non-vision) — dianggap gagal, bukan hasil valid, biar auto-retry ke model lain.
+const BLANK_VISION_RE = new RegExp(
+  "gambar (yang )?(anda |kamu )?(unggah|upload)[^.]*(kosong|putih)" +
+  "|(gambar|foto)(nya)? (tampak|terlihat)?\\s*kosong" +
+  "|tidak (dapat|bisa) (melihat|mendeteksi|menemukan) (isi|konten|detail|gambar)" +
+  "|hanya berisi warna putih" +
+  "|blank (image|white)|image (appears|is|seems) (blank|empty|white)|cannot see (any|the) (image|content)",
+  "i"
+);
+
 function detectImageGenIntent(text) {
   return !!text && IMAGE_GEN_RE.test(text);
 }
@@ -96,6 +113,54 @@ function detectImageEditIntent(text) {
 
 function detectWebSearchIntent(text) {
   return !!text && WEB_SEARCH_RE.test(text);
+}
+
+/* =========================================================
+   PREFIX COMMAND — override manual, lebih pasti daripada auto-detect.
+   Ketik di awal pesan: /gambar, /edit, /vision, /cari, atau /chat.
+   ========================================================= */
+const PREFIX_COMMANDS = {
+  "/gambar": "image", "/image": "image", "/img": "image", "/generate": "image",
+  "/edit": "edit", "/editfoto": "edit",
+  "/vision": "vision", "/analisis": "vision", "/lihat": "vision",
+  "/cari": "search", "/search": "search", "/websearch": "search",
+  "/chat": "chat", "/nova": "chat"
+};
+
+function parsePrefixCommand(text) {
+  if (!text) return { command: null, text: "" };
+  const match = text.match(/^\s*(\/[a-zA-Z]+)\b\s*([\s\S]*)$/);
+  if (!match) return { command: null, text };
+  const command = PREFIX_COMMANDS[match[1].toLowerCase()];
+  if (!command) return { command: null, text };
+  return { command, text: match[2].trim() };
+}
+
+// cek cepat sebelum kirim ke vision: URL-nya beneran nunjuk ke file gambar yang
+// bisa diakses publik gak (bukan halaman viewer/HTML, bukan 404, bukan kosong).
+// Ini yang nangkep akar masalah "gambar kosong" kalau ternyata upload/URL-nya
+// yang bermasalah, bukan model visionnya.
+async function verifyImageUrlReachable(imageUrl) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let response;
+    try {
+      response = await fetch(imageUrl, { method: "GET", signal: controller.signal, headers: { Range: "bytes=0-2048" } });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (!response.ok && response.status !== 206) {
+      return { ok: false, reason: `URL foto HTTP ${response.status}` };
+    }
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) {
+      return { ok: false, reason: `URL foto bukan file gambar langsung (content-type: ${contentType || "tidak diketahui"})` };
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: error?.message || "URL foto tidak bisa diakses" };
+  }
 }
 
 function bufferToDataUrl(buffer, mime) {
@@ -258,20 +323,31 @@ async function createOpenRouterVisionRequest(question, imageUrl, model) {
   return { result, model: data?.model || model };
 }
 
-// coba model vision utama dulu, kalau gagal/hasil kosong baru fallback ke model
-// vision cadangan — ini yang bikin "deteksi gambar" jadi jauh lebih reliable.
+// coba tiap model di VISION_MODEL_CHAIN berurutan. Kalau modelnya error ATAU
+// ngembaliin pola jawaban "gambar kosong" yang ngasal (BLANK_VISION_RE), tetap
+// dianggap gagal dan lanjut ke model berikutnya — ini yang bikin "deteksi
+// gambar" jauh lebih reliable dibanding cuma andelin 1 model / 1 percobaan.
 async function runVisionWithFallback(question, imageUrl) {
-  try {
-    return await createOpenRouterVisionRequest(question, imageUrl, OPENROUTER_MODEL);
-  } catch (primaryError) {
-    console.error("VISION PRIMARY FAILED, trying fallback model:", primaryError?.message || primaryError);
+  let lastError = null;
+
+  for (const model of VISION_MODEL_CHAIN) {
     try {
-      return await createOpenRouterVisionRequest(question, imageUrl, VISION_FALLBACK_MODEL);
-    } catch (fallbackError) {
-      console.error("VISION FALLBACK FAILED:", fallbackError?.message || fallbackError);
-      throw fallbackError;
+      const result = await createOpenRouterVisionRequest(question, imageUrl, model);
+
+      if (BLANK_VISION_RE.test(result.result)) {
+        console.error(`VISION MODEL ${model} RETURNED BLANK-STYLE ANSWER, trying next`);
+        lastError = new Error(`${model} melaporkan gambar kosong (kemungkinan halusinasi)`);
+        continue;
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`VISION MODEL ${model} FAILED:`, error?.message || error);
+      lastError = error;
     }
   }
+
+  throw lastError || new Error("Semua model vision gagal");
 }
 
 function createOpenRouterRequest(messages, online) {
@@ -674,12 +750,12 @@ export default async function handler(req, res) {
       body = await parseJson(req);
     }
 
-    const question =
+    const rawQuestion =
       getQuestion(req, body);
 
     const imageUrl = getImageUrl(req, body);
 
-    if (!question && !imageUrl) {
+    if (!rawQuestion && !imageUrl) {
       return json(res, 400, {
         status: false,
         error: "question atau image_url wajib diisi"
@@ -693,37 +769,63 @@ export default async function handler(req, res) {
       });
     }
 
-    /* ============================================================
-       AUTO-ROUTING "MODEL" — Nova AI otomatis pindah ke "model"
-       (backend) yang sesuai niat user, tanpa perlu mode manual:
-       - ada image_url + instruksi edit  -> Nova Image Edit
-       - ada image_url + lainnya         -> Nova Vision (analisis foto)
-       - tanpa image_url + minta gambar  -> Nova Image Gen
-       - tanpa image_url + butuh info up-to-date -> Nova Chat + web search
-       - default                         -> Nova Chat biasa
-       ============================================================ */
+    // prefix command (/gambar, /edit, /vision, /cari, /chat) manual override —
+    // kalau ada, ini yang menang, gak perlu nebak-nebak dari auto-detect lagi.
+    const { command, text: question } = parsePrefixCommand(rawQuestion);
 
-    if (imageUrl && detectImageEditIntent(question)) {
-      try {
-        const { buffer, mime } = await editImageWithIkyyxd(imageUrl, question);
-        return json(res, 200, {
-          status: true,
-          type: "image",
-          provider: "ikyyxd",
-          model: "nova-image-edit",
-          image: bufferToDataUrl(buffer, mime)
-        });
-      } catch (error) {
-        console.error("EDIT PHOTO FAILED:", error?.message || error);
-        return json(res, error.status || 503, {
-          status: false,
-          error: error.message || "Gagal mengedit gambar",
-          detail: error.detail
-        });
-      }
+    if ((command === "edit" || command === "vision") && !imageUrl) {
+      return json(res, 400, {
+        status: false,
+        error: `Perintah ${command === "edit" ? "/edit" : "/vision"} butuh foto — lampirkan foto dulu.`
+      });
     }
 
+    /* ============================================================
+       AUTO-ROUTING "MODEL" — Nova AI otomatis pindah ke "model"
+       (backend) yang sesuai niat user (atau prefix command manual):
+       - ada image_url + instruksi edit (atau /edit) -> Nova Image Edit
+       - ada image_url + lainnya (atau /vision)       -> Nova Vision
+       - tanpa image_url + minta gambar (atau /gambar) -> Nova Image Gen
+       - /cari atau butuh info up-to-date              -> Nova Chat + web search
+       - /chat                                          -> paksa chat biasa
+       - default                                        -> Nova Chat biasa
+       ============================================================ */
+
     if (imageUrl) {
+      const wantsEdit = command === "edit" || (command !== "vision" && command !== "chat" && detectImageEditIntent(question));
+
+      if (wantsEdit) {
+        try {
+          const { buffer, mime } = await editImageWithIkyyxd(imageUrl, question);
+          return json(res, 200, {
+            status: true,
+            type: "image",
+            provider: "ikyyxd",
+            model: "nova-image-edit",
+            image: bufferToDataUrl(buffer, mime)
+          });
+        } catch (error) {
+          console.error("EDIT PHOTO FAILED:", error?.message || error);
+          return json(res, error.status || 503, {
+            status: false,
+            error: error.message || "Gagal mengedit gambar",
+            detail: error.detail
+          });
+        }
+      }
+
+      // cek dulu URL foto beneran bisa diakses & memang file gambar, sebelum
+      // dilempar ke model vision — ini nangkep kasus "gambar kosong" yang
+      // akar masalahnya ternyata di upload/URL, bukan di model AI-nya.
+      const reachability = await verifyImageUrlReachable(imageUrl);
+      if (!reachability.ok) {
+        return json(res, 502, {
+          status: false,
+          error: "Foto tidak bisa diakses layanan AI",
+          detail: reachability.reason
+        });
+      }
+
       try {
         const vision = await runVisionWithFallback(question, imageUrl);
         return json(res, 200, {
@@ -744,7 +846,9 @@ export default async function handler(req, res) {
       }
     }
 
-    if (detectImageGenIntent(question)) {
+    const wantsImageGen = command === "image" || (command === null && detectImageGenIntent(question));
+
+    if (wantsImageGen) {
       try {
         const { buffer, mime } = await generatePollinationsImage(question);
         return json(res, 200, {
@@ -764,7 +868,7 @@ export default async function handler(req, res) {
       }
     }
 
-    const needsSearch = detectWebSearchIntent(question);
+    const needsSearch = command === "search" || (command === null && detectWebSearchIntent(question));
 
     const messages = [
       {
