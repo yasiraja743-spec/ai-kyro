@@ -1,4 +1,5 @@
 import { json, parseJson } from "./_hf.js";
+import { generatePollinationsImage, editImageWithIkyyxd } from "./_image.js";
 
 export const maxDuration = 60;
 
@@ -9,6 +10,10 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const DEEPSEEK_MODEL = "qwen/qwen3.8-max";
 const OPENROUTER_MODEL = "openrouter/free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
+
+// dipakai kalau openrouter/free gagal analisis gambar (router kadang milih model
+// yang bukan vision) — model ini konsisten free & vision-capable per Agustus 2026.
+const VISION_FALLBACK_MODEL = "google/gemma-4-31b-it:free";
 
 const SYSTEM_PROMPT = `
 Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
@@ -54,6 +59,48 @@ ATURAN FILE DAN KODE:
 
 Jangan pernah menampilkan proses berpikir internal.
 `;
+
+/* =========================================================
+   DETEKSI NIAT (intent) — dipakai buat auto-switch "model":
+   chat biasa / generate gambar / edit gambar / web search.
+   ========================================================= */
+
+const IMAGE_GEN_RE = new RegExp(
+  "(buat(?:kan)?|bikin(?:in)?|gambar(?:kan)?|lukis(?:kan)?|ciptakan|hasilkan|render)\\s+(?:aku |ku |saya )?(?:sebuah |satu )?(gambar|foto|ilustrasi|lukisan|wallpaper|logo|poster|avatar|karakter|desain)" +
+  "|(gambar|foto|ilustrasi|lukisan)\\s+(tentang|dari|dengan tema|bertema)" +
+  "|generate(?:\\s+an?)?\\s+image" +
+  "|create\\s+(?:an?\\s+)?(image|picture|illustration|artwork)" +
+  "|\\bimage of\\b|\\bpicture of\\b|\\bdraw\\s+(me|a|an)\\b",
+  "i"
+);
+
+const IMAGE_EDIT_RE = new RegExp(
+  "\\b(edit|ubah|ganti(?:in)?|hapus(?:kan)?|hilangkan|hilangin|tambahkan|tambahin|perbaiki|crop|potong|jadiin|jadikan|hapus background|ganti background|ganti warna|colorize|retouch)\\b" +
+  "|\\b(remove|change|replace|enhance|recolor)\\b",
+  "i"
+);
+
+const WEB_SEARCH_RE = new RegExp(
+  "\\b(hari ini|sekarang|saat ini|terbaru|terkini|ter-update|update terbaru|terupdate|berita|kabar terbaru|harga (?:emas|bbm|minyak|saham|bitcoin|dollar|rupiah)|kurs|skor|hasil pertandingan|jadwal|siapa (?:presiden|ceo|juara|gubernur|menteri)|cuaca|ramalan cuaca|tahun ini|minggu ini|bulan ini)\\b" +
+  "|\\b(current|latest|today|right now|breaking news|as of \\d{4}|this week|this year|weather|stock price|exchange rate)\\b",
+  "i"
+);
+
+function detectImageGenIntent(text) {
+  return !!text && IMAGE_GEN_RE.test(text);
+}
+
+function detectImageEditIntent(text) {
+  return !!text && IMAGE_EDIT_RE.test(text);
+}
+
+function detectWebSearchIntent(text) {
+  return !!text && WEB_SEARCH_RE.test(text);
+}
+
+function bufferToDataUrl(buffer, mime) {
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
 
 function getQuestion(req, body) {
   if (req.method === "GET") {
@@ -166,7 +213,7 @@ async function createDeepSeekRequest(messages) {
   return response;
 }
 
-async function createOpenRouterVisionRequest(question, imageUrl) {
+async function createOpenRouterVisionRequest(question, imageUrl, model) {
   if (!OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY belum dikonfigurasi");
   }
@@ -182,7 +229,7 @@ async function createOpenRouterVisionRequest(question, imageUrl) {
         "X-Title": "NOVA AI"
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -208,17 +255,48 @@ async function createOpenRouterVisionRequest(question, imageUrl) {
   const data = await readJsonResponse(response, "OpenRouter Vision");
   const result = extractContent(data);
   if (!result) throw new Error("OpenRouter Vision tidak mengembalikan hasil");
-  return { result, model: data?.model || OPENROUTER_MODEL };
+  return { result, model: data?.model || model };
 }
 
-async function createOpenRouterRequest(messages) {
+// coba model vision utama dulu, kalau gagal/hasil kosong baru fallback ke model
+// vision cadangan — ini yang bikin "deteksi gambar" jadi jauh lebih reliable.
+async function runVisionWithFallback(question, imageUrl) {
+  try {
+    return await createOpenRouterVisionRequest(question, imageUrl, OPENROUTER_MODEL);
+  } catch (primaryError) {
+    console.error("VISION PRIMARY FAILED, trying fallback model:", primaryError?.message || primaryError);
+    try {
+      return await createOpenRouterVisionRequest(question, imageUrl, VISION_FALLBACK_MODEL);
+    } catch (fallbackError) {
+      console.error("VISION FALLBACK FAILED:", fallbackError?.message || fallbackError);
+      throw fallbackError;
+    }
+  }
+}
+
+function createOpenRouterRequest(messages, online) {
   if (!OPENROUTER_API_KEY) {
     throw new Error(
       "OPENROUTER_API_KEY belum dikonfigurasi"
     );
   }
 
-  const response = await fetch(
+  const body = {
+    model: online ? `${OPENROUTER_MODEL}:online` : OPENROUTER_MODEL,
+    messages,
+    stream: true,
+    temperature: 0.7,
+    max_tokens: 16000
+  };
+
+  if (online) {
+    // plugin "web" OpenRouter — nginject hasil pencarian ke konteks sebelum model
+    // menjawab. Dipakai (bukan tool-call openrouter:web_search) karena harus tetap
+    // jalan meski model gratis yang dipilih openrouter/free tidak support tool-calling.
+    body.plugins = [{ id: "web", max_results: 4 }];
+  }
+
+  return fetch(
     "https://openrouter.ai/api/v1/chat/completions",
     {
       method: "POST",
@@ -230,31 +308,23 @@ async function createOpenRouterRequest(messages) {
           "https://ai-kyro.vercel.app",
         "X-Title": "NOVA AI"
       },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages,
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 16000
-      })
+      body: JSON.stringify(body)
     }
-  );
+  ).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(
+        `OpenRouter: ${await getErrorText(response)}`
+      );
+    }
 
-  if (!response.ok) {
-    throw new Error(
-      `OpenRouter: ${await getErrorText(
-        response
-      )}`
-    );
-  }
+    if (!response.body) {
+      throw new Error(
+        "OpenRouter tidak mengembalikan stream"
+      );
+    }
 
-  if (!response.body) {
-    throw new Error(
-      "OpenRouter tidak mengembalikan stream"
-    );
-  }
-
-  return response;
+    return response;
+  });
 }
 
 async function createGroqRequest(messages) {
@@ -376,18 +446,13 @@ async function collectStream(response) {
   };
 }
 
-async function streamProvider(
-  response,
-  res,
-  provider,
-  model
-) {
+async function streamProvider(response, res, provider, model) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
   let buffer = "";
-  let sentAny = false;
   let fullResult = "";
+  let sentAny = false;
 
   res.writeHead(200, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -497,7 +562,8 @@ async function streamProvider(
 async function executeProvider(
   provider,
   messages,
-  res
+  res,
+  online
 ) {
   let response;
 
@@ -515,13 +581,13 @@ async function executeProvider(
 
   if (provider === "openrouter") {
     response =
-      await createOpenRouterRequest(messages);
+      await createOpenRouterRequest(messages, online);
 
     return streamProvider(
       response,
       res,
       "openrouter",
-      OPENROUTER_MODEL
+      online ? `${OPENROUTER_MODEL}:online` : OPENROUTER_MODEL
     );
   }
 
@@ -544,7 +610,8 @@ async function executeProvider(
 
 async function executeNonStreaming(
   provider,
-  messages
+  messages,
+  online
 ) {
   let response;
 
@@ -553,7 +620,7 @@ async function executeNonStreaming(
       await createDeepSeekRequest(messages);
   } else if (provider === "openrouter") {
     response =
-      await createOpenRouterRequest(messages);
+      await createOpenRouterRequest(messages, online);
   } else {
     response =
       await createGroqRequest(messages);
@@ -582,7 +649,7 @@ async function executeNonStreaming(
         provider === "deepseek"
           ? DEEPSEEK_MODEL
           : provider === "openrouter"
-            ? OPENROUTER_MODEL
+            ? (online ? `${OPENROUTER_MODEL}:online` : OPENROUTER_MODEL)
             : GROQ_MODEL
       )
   };
@@ -626,11 +693,42 @@ export default async function handler(req, res) {
       });
     }
 
-    if (imageUrl) {
+    /* ============================================================
+       AUTO-ROUTING "MODEL" — Nova AI otomatis pindah ke "model"
+       (backend) yang sesuai niat user, tanpa perlu mode manual:
+       - ada image_url + instruksi edit  -> Nova Image Edit
+       - ada image_url + lainnya         -> Nova Vision (analisis foto)
+       - tanpa image_url + minta gambar  -> Nova Image Gen
+       - tanpa image_url + butuh info up-to-date -> Nova Chat + web search
+       - default                         -> Nova Chat biasa
+       ============================================================ */
+
+    if (imageUrl && detectImageEditIntent(question)) {
       try {
-        const vision = await createOpenRouterVisionRequest(question, imageUrl);
+        const { buffer, mime } = await editImageWithIkyyxd(imageUrl, question);
         return json(res, 200, {
           status: true,
+          type: "image",
+          provider: "ikyyxd",
+          model: "nova-image-edit",
+          image: bufferToDataUrl(buffer, mime)
+        });
+      } catch (error) {
+        console.error("EDIT PHOTO FAILED:", error?.message || error);
+        return json(res, error.status || 503, {
+          status: false,
+          error: error.message || "Gagal mengedit gambar",
+          detail: error.detail
+        });
+      }
+    }
+
+    if (imageUrl) {
+      try {
+        const vision = await runVisionWithFallback(question, imageUrl);
+        return json(res, 200, {
+          status: true,
+          type: "text",
           provider: "openrouter",
           model: vision.model,
           result: vision.result,
@@ -646,6 +744,28 @@ export default async function handler(req, res) {
       }
     }
 
+    if (detectImageGenIntent(question)) {
+      try {
+        const { buffer, mime } = await generatePollinationsImage(question);
+        return json(res, 200, {
+          status: true,
+          type: "image",
+          provider: "pollinations",
+          model: "nova-image-gen",
+          image: bufferToDataUrl(buffer, mime)
+        });
+      } catch (error) {
+        console.error("IMAGE GEN FAILED:", error?.message || error);
+        return json(res, 503, {
+          status: false,
+          error: error.message || "Gagal membuat gambar",
+          detail: error.detail
+        });
+      }
+    }
+
+    const needsSearch = detectWebSearchIntent(question);
+
     const messages = [
       {
         role: "system",
@@ -660,36 +780,39 @@ export default async function handler(req, res) {
     const stream =
       wantsStream(req, body);
 
-    const providers = [
-      "deepseek",
-      "openrouter",
-      "groq"
-    ];
+    // kalau butuh info terkini, coba openrouter (web search) duluan —
+    // deepseek/groq gak bisa browsing, jadi baru dicoba sebagai fallback
+    // kalau openrouter gagal (jawaban tanpa data terbaru masih lebih baik
+    // daripada error total).
+    const providers = needsSearch
+      ? ["openrouter", "deepseek", "groq"]
+      : ["deepseek", "openrouter", "groq"];
 
     const errors = {};
 
     if (!stream) {
       for (const provider of providers) {
         try {
+          const online = needsSearch && provider === "openrouter";
+
           const result =
             await executeNonStreaming(
               provider,
-              messages
+              messages,
+              online
             );
 
           return json(res, 200, {
             status: true,
+            type: "text",
             provider: result.provider,
             model: result.model,
             result: result.result,
+            web_search: online,
             fallback:
-              provider !== "deepseek",
+              provider !== providers[0],
             fallback_from:
-              provider === "openrouter"
-                ? "deepseek"
-                : provider === "groq"
-                  ? "deepseek+openrouter"
-                  : undefined
+              provider !== providers[0] ? providers[0] : undefined
           });
         } catch (error) {
           errors[provider] =
@@ -712,10 +835,13 @@ export default async function handler(req, res) {
 
     for (const provider of providers) {
       try {
+        const online = needsSearch && provider === "openrouter";
+
         await executeProvider(
           provider,
           messages,
-          res
+          res,
+          online
         );
 
         return;
