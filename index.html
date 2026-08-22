@@ -558,7 +558,7 @@
           <div class="input-row">
             <button id="plusBtn" title="Lampiran"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
             <span id="modelBtn" title="Model AI aktif — otomatis menyesuaikan permintaanmu"><span id="modelBtnLabel">Nova Chat</span></span>
-            <textarea id="chatInput" placeholder="Tulis pesan..." rows="1"></textarea>
+            <textarea id="chatInput" placeholder="Tulis pesan... (atau /gambar, /edit, /cari, /chat)" rows="1"></textarea>
             <button class="btn-primary" id="chatSendBtn"><span>Kirim</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
           </div>
         </div>
@@ -1410,7 +1410,7 @@ document.getElementById('modeCancelBtn').addEventListener('click', resetMode);
 function resetMode(){
   currentMode = 'chat';
   pickedFile = null;
-  chatInput.placeholder = 'Tulis pesan...';
+  chatInput.placeholder = 'Tulis pesan... (atau /gambar, /edit, /cari, /chat)';
   modeIndicator.classList.remove('show');
   filePickChip.classList.remove('show');
   filePickThumb.style.display = 'none';
@@ -1460,8 +1460,31 @@ function detectWebSearchIntent(t){
     || /\b(current|latest|today|right now|breaking news|this week|this year|weather|stock price|exchange rate)\b/.test(t);
 }
 
+// prefix manual (/gambar, /edit, /vision, /cari, /chat) — sama seperti yang
+// dikenali backend, dipakai di sini cuma buat update label indikator langsung.
+const PREFIX_LABELS = {
+  '/gambar': 'image', '/image': 'image', '/img': 'image', '/generate': 'image',
+  '/edit': 'edit', '/editfoto': 'edit',
+  '/vision': 'vision', '/analisis': 'vision', '/lihat': 'vision',
+  '/cari': 'search', '/search': 'search', '/websearch': 'search',
+  '/chat': 'chat', '/nova': 'chat'
+};
+function detectPrefixCommand(t){
+  if(!t) return null;
+  const m = t.trim().match(/^(\/[a-zA-Z]+)\b/);
+  if(!m) return null;
+  return PREFIX_LABELS[m[1].toLowerCase()] || null;
+}
+
 function updateModelLabel(){
   const text = chatInput.value.trim();
+  const command = detectPrefixCommand(text);
+  if(command === 'image'){ modelBtnLabel.textContent = 'Nova Image Gen'; return; }
+  if(command === 'edit'){ modelBtnLabel.textContent = 'Nova Image Edit'; return; }
+  if(command === 'vision'){ modelBtnLabel.textContent = 'Nova Vision'; return; }
+  if(command === 'search'){ modelBtnLabel.textContent = 'Nova Chat (Web Search)'; return; }
+  if(command === 'chat'){ modelBtnLabel.textContent = 'Nova Chat'; return; }
+
   if(pickedFile){
     modelBtnLabel.textContent = detectImageEditIntent(text) ? 'Nova Image Edit' : 'Nova Vision';
   } else if(detectImageGenIntent(text)){
