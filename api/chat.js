@@ -6,7 +6,7 @@ const XKIRO_API_KEY = process.env.XKIRO_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-const DEEPSEEK_MODEL = "deepseek/deepseek-v4-pro";
+const DEEPSEEK_MODEL = "qwen/qwen3.8-max";
 const OPENROUTER_MODEL = "liquid/lfm-2.5-embedding-350m:free";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
