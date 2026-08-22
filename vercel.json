@@ -1,21 +1,21 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "redirects": [
+  "trailingSlash": false,
+  "outputDirectory": ".",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
     {
-      "source": "/api-docs.html",
-      "destination": "/api-docs",
-      "permanent": true
+      "source": "/chat",
+      "destination": "/index.html"
     },
     {
-      "source": "/chat.html",
-      "destination": "/chat",
-      "permanent": true
-    },
-    {
-      "source": "/index.html",
-      "destination": "/",
-      "permanent": true
+      "source": "/api-docs",
+      "destination": "/api-docs.html"
     }
   ]
 }

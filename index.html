@@ -552,6 +552,7 @@
           <div id="modeMenu">
             <button data-mode="image"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Generate Gambar</button>
             <button data-mode="editPhoto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Edit Foto</button>
+            <button data-mode="vision"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path></svg> Analisis Foto</button>
           </div>
           <div id="modeIndicator"><span id="modeIndicatorText"></span><button id="modeCancelBtn">Batal</button></div>
           <div id="filePickChip">
@@ -561,12 +562,13 @@
           </div>
           <input type="file" id="hiddenFileInput" accept="image/*" style="display:none;">
           <div id="modelMenu">
-            <button data-model="nova" class="active">Nova AI</button>
-            <button data-model="claude">Claude Haiku</button>
+            <button data-model="nova2" class="active">Nova AI v2.0</button>
+            <button data-model="nova13">Nova AI v1.3</button>
+            <button data-model="nova10">Nova AI v1.0</button>
           </div>
           <div class="input-row">
             <button id="plusBtn" title="Mode & lampiran"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-            <button id="modelBtn"><span id="modelBtnLabel">Nova AI</span>
+            <button id="modelBtn"><span id="modelBtnLabel">Nova AI v2.0</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             <textarea id="chatInput" placeholder="Tulis pesan..." rows="1"></textarea>
@@ -1372,7 +1374,14 @@ document.querySelectorAll('.quick-action-card').forEach(btn => {
 function selectMode(mode){
   currentMode = mode;
   pickedFile = null;
-  if(mode === 'image'){
+  if(mode === 'vision'){
+    modeIndicatorText.textContent = 'Mode: Analisis Foto';
+    chatInput.placeholder = 'Opsional: apa yang ingin dianalisis?';
+    modeIndicator.classList.add('show');
+    filePickChip.classList.add('show');
+    filePickLabel.textContent = 'Pilih foto untuk dianalisis';
+    hiddenFileInput.click();
+  } else if(mode === 'image'){
     modeIndicatorText.textContent = 'Mode: Generate Gambar';
     chatInput.placeholder = 'Deskripsikan gambar yang mau dibuat...';
     modeIndicator.classList.add('show');
@@ -1406,11 +1415,17 @@ hiddenFileInput.addEventListener('change', () => {
     filePickLabel.textContent = pickedFile.name;
     filePickThumb.src = URL.createObjectURL(pickedFile);
     filePickThumb.style.display = 'inline-block';
+    if(currentMode === 'vision'){
+      const prompt = chatInput.value.trim() || 'Analisis gambar ini secara detail. Jelaskan apa yang terlihat, teks yang terbaca, objek penting, dan hal relevan lainnya.';
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+      sendVisionMessage(prompt, pickedFile).finally(() => resetMode());
+    }
   }
 });
 
 /* =========================================================
-   9b. PILIH MODEL AI (Nova AI / Claude Haiku)
+   9b. PILIH MODEL AI (Nova AI v2.0 / v1.3 / v1.0)
    ========================================================= */
 let currentModel = 'nova';
 const modelMenu = document.getElementById('modelMenu');
@@ -1477,6 +1492,13 @@ async function handleSend(){
     chatInput.value = '';
     chatInput.style.height = 'auto';
     await sendImageMessage(text);
+    resetMode();
+  } else if(currentMode === 'vision'){
+    if(!pickedFile){ hiddenFileInput.click(); return; }
+    const visionPrompt = text || 'Analisis gambar ini secara detail. Jelaskan apa yang terlihat, teks yang terbaca, objek penting, dan hal relevan lainnya.';
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    await sendVisionMessage(visionPrompt, pickedFile);
     resetMode();
   } else if(currentMode === 'editPhoto'){
     if(!pickedFile){ hiddenFileInput.click(); return; }
@@ -1648,6 +1670,48 @@ function blobToDataURL(blob){
     reader.onerror = () => reject(reader.error || new Error('Gagal membaca file'));
     reader.readAsDataURL(blob);
   });
+}
+
+async function sendVisionMessage(prompt, file){
+  const targetConvId = activeConvId;
+  const previewUrl = URL.createObjectURL(file);
+  const userDiv = addImageMsg(previewUrl, 'user');
+  persistMessage(targetConvId, 'user', previewUrl, 'image');
+  const loadingDiv = addTypingBubble();
+  try{
+    const uploadRes = await fetch(API.uploadImage, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'image/jpeg' },
+      body: file
+    });
+    if(!uploadRes.ok) throw new Error(`Upload HTTP ${uploadRes.status}`);
+    const uploadData = await uploadRes.json();
+    if(!uploadData.status || !uploadData.url) throw new Error(uploadData.error || 'Upload foto gagal');
+
+    const res = await fetch(API.chat, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: prompt,
+        image_url: uploadData.url,
+        model: 'openrouter/free'
+      })
+    });
+    if(!res.ok){
+      let message = `HTTP ${res.status}`;
+      try{ const errorData = await res.json(); message = errorData?.error || errorData?.message || message; if(errorData?.detail) message += ` — ${errorData.detail}`; }catch{}
+      throw new Error(message);
+    }
+    const data = await res.json();
+    if(!data.status) throw new Error(data.error || 'Vision error');
+    const answer = data.result || 'Maaf, gambar tidak dapat dianalisis.';
+    if(targetConvId === activeConvId && loadingDiv){ await revealText(loadingDiv, answer); }
+    persistMessage(targetConvId, 'ai', answer);
+    if(targetConvId === activeConvId && loadingDiv){ attachMessageActions(loadingDiv, 'ai', targetConvId, getConvById(targetConvId).messages.length - 1); }
+  }catch(e){
+    console.error('vision error:', e);
+    if(targetConvId === activeConvId && loadingDiv){ loadingDiv.innerHTML = ''; loadingDiv.textContent = 'Vision error: ' + e.message; }
+  }
 }
 
 async function sendEditPhotoMessage(prompt, file){
