@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Api Document — NOVA AI</title>
+<title>Api Document — ONYX AI</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -112,14 +112,14 @@
 <body>
 
 <div id="topBar">
-  <div class="logo"><span class="dot"></span> NOVA</div>
+  <div class="logo"><span class="dot"></span> ONYX</div>
   <a id="backBtn" href="/index.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Kembali ke Chat</a>
 </div>
 
 <div class="wrap">
   <div class="page-head">
     <h1>Api Document</h1>
-    <p>Daftar endpoint NOVA AI beserta cara pakai &amp; try-it langsung. Semua endpoint mendukung GET dengan query string.</p>
+    <p>Daftar endpoint ONYX AI beserta cara pakai &amp; try-it langsung. Semua endpoint mendukung GET dengan query string.</p>
   </div>
   <div id="docsBody"></div>
   <div id="docsPagination"></div>
@@ -132,7 +132,7 @@ const API_DOCS = [
     title: 'Chat AI',
     method: 'GET',
     endpoint: '/api/chat',
-    desc: 'Kirim pertanyaan ke NOVA AI dan dapatkan jawaban teks. Otomatis fallback ke provider cadangan kalau provider utama gagal.',
+    desc: 'Kirim pertanyaan ke ONYX AI dan dapatkan jawaban teks. Otomatis fallback ke provider cadangan kalau provider utama gagal.',
     params: [
       { name: 'question', type: 'string', required: true, desc: 'Pertanyaan / pesan yang dikirim ke AI' }
     ],

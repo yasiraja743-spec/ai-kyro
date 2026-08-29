@@ -1,7 +1,7 @@
 {
-  "name": "nova-ai-frontend",
+  "name": "onyx-ai-frontend",
   "version": "1.0.0",
-  "description": "Nova AI Frontend - Chat, Image Gen, Photo Editing",
+  "description": "ONYX AI Frontend - Chat, Image Gen, Photo Editing",
   "private": true,
   "scripts": {
     "dev": "python -m http.server 3000"

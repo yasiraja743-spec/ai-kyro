@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NOVA — Asisten AI</title>
+<title>ONYX — Asisten AI</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -458,6 +458,66 @@
     #authWrapper .card{ border-radius:0 24px 24px 0; box-shadow:0 20px 50px rgba(0,0,0,0.45); }
     #authWrapper .card::before{ display:none; }
   }
+  /* ---------- Bot Mascot ---------- */
+  #mascotWidget{
+    position:fixed; right:16px; bottom:96px; z-index:60;
+    --mascot-color: var(--violet-2);
+    display:flex; flex-direction:column; align-items:flex-end; gap:10px;
+  }
+  #mascotBtn{
+    width:52px; height:52px; border-radius:50%; border:1px solid var(--border);
+    background: linear-gradient(145deg, var(--surface), var(--surface-2));
+    box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.02) inset;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative;
+    transition: transform .18s ease;
+  }
+  #mascotBtn:hover{ transform: translateY(-2px) scale(1.04); }
+  #mascotBtn .mascot-eye{ fill: var(--mascot-color); transition: .15s; }
+  #mascotBtn .mascot-face{ stroke: var(--mascot-color); transition: .2s; }
+  #mascotBtn .mascot-antenna-dot{ fill: var(--mascot-color); }
+  #mascotWidget.reading #mascotBtn{ animation: mascotBob 0.9s ease-in-out infinite; }
+  #mascotWidget.reading #mascotBtn .mascot-eye{ animation: mascotScan 1.1s ease-in-out infinite; }
+  #mascotWidget.happy #mascotBtn{ animation: mascotPop .5s ease; }
+  @keyframes mascotBob{ 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-4px); } }
+  @keyframes mascotScan{ 0%,100%{ transform: translateX(-1.5px); } 50%{ transform: translateX(1.5px); } }
+  @keyframes mascotPop{ 0%{ transform: scale(1); } 40%{ transform: scale(1.18); } 100%{ transform: scale(1); } }
+  #mascotStatusDot{
+    position:absolute; top:2px; right:2px; width:11px; height:11px; border-radius:50%;
+    background: var(--mascot-color); border:2px solid var(--bg); display:none;
+  }
+  #mascotWidget.reading #mascotStatusDot{ display:block; }
+
+  #mascotPanel{
+    display:none; width:224px; background: var(--surface); border:1px solid var(--border); border-radius:18px;
+    padding:14px; box-shadow: 0 18px 44px rgba(0,0,0,0.5);
+  }
+  #mascotPanel.show{ display:block; animation: msgIn .18s ease; }
+  .mascot-panel-title{ font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .mascot-panel-title .dot{ width:7px; height:7px; border-radius:50%; background: var(--mascot-color); }
+  .mascot-row{ margin-bottom:12px; }
+  .mascot-row:last-child{ margin-bottom:0; }
+  .mascot-row-label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; font-weight:600; margin-bottom:7px; }
+  .mascot-emote-options{ display:flex; gap:6px; }
+  .mascot-emote-btn{
+    flex:1; background: var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:7px 0;
+    font-size:16px; cursor:pointer; transition:.15s;
+  }
+  .mascot-emote-btn.active{ border-color: var(--mascot-color); background: rgba(255,255,255,0.04); }
+  .mascot-color-options{ display:flex; gap:8px; }
+  .mascot-color-dot{
+    width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:.15s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mascot-color-dot.active{ border-color: var(--text); }
+  #mascotMuteRow{ display:flex; align-items:center; justify-content:space-between; }
+  #mascotMuteBtn{
+    background: var(--surface-2); border:1px solid var(--border); color:var(--text); width:36px; height:28px;
+    border-radius:9px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center;
+  }
+  #mascotMuteBtn.active{ border-color: var(--mascot-color); color: var(--mascot-color); }
+  @media(min-width:900px){
+    #mascotWidget{ bottom:110px; right:28px; }
+  }
 </style>
 </head>
 <body>
@@ -470,7 +530,7 @@
   <div id="sidebarOverlay"></div>
   <aside id="sidebar">
     <div class="sidebar-head">
-      <div class="logo"><span class="dot"></span> NOVA</div>
+      <div class="logo"><span class="dot"></span> ONYX</div>
       <button id="closeSidebarBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
     </div>
     <div id="historyList"><div class="history-empty">Belum ada obrolan</div></div>
@@ -487,7 +547,7 @@
   <div id="mainArea">
     <div id="topBar">
       <button id="menuToggleBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
-      <div class="topbar-title" id="topbarTitle">NOVA</div>
+      <div class="topbar-title" id="topbarTitle">ONYX</div>
     </div>
 
     <div class="content-wrap">
@@ -499,7 +559,7 @@
         <div id="authWrapper">
           <div id="authBrandPanel">
             <div class="brand-panel-inner">
-              <div class="logo" style="font-size:26px;"><span class="dot"></span> NOVA</div>
+              <div class="logo" style="font-size:26px;"><span class="dot"></span> ONYX</div>
               <h2>Satu asisten AI buat semua kebutuhan kamu.</h2>
               <ul class="brand-feature-list">
                 <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12.5 10.8 15.3 16 9"></polyline></svg> Ngobrol natural, jawaban langsung dirapiin</li>
@@ -510,7 +570,7 @@
             </div>
           </div>
           <div class="card">
-            <h1 id="authTitle">Masuk ke NOVA</h1>
+            <h1 id="authTitle">Masuk ke ONYX</h1>
             <p class="sub" id="authSub">Asisten AI untuk ngobrol, bikin gambar, dan edit foto.</p>
             <div id="authError"></div>
             <div id="nameField" style="display:none;">
@@ -574,13 +634,13 @@
           </div>
           <input type="file" id="hiddenFileInput" accept="image/*" style="display:none;">
           <div id="modelMenu">
-            <button data-model="v2" class="active">Nova AI v2.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">Qwen3.8 Max</span></button>
-            <button data-model="v13">Nova AI v1.3 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">OpenRouter Free</span></button>
-            <button data-model="v10">Nova AI v1.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">GPT-OSS</span></button>
+            <button data-model="v2" class="active">ONYX AI v2.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">Qwen3.8 Max</span></button>
+            <button data-model="v13">ONYX AI v1.3 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">OpenRouter Free</span></button>
+            <button data-model="v10">ONYX AI v1.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">GPT-OSS</span></button>
           </div>
           <div class="input-row">
             <button id="plusBtn" title="Mode & lampiran"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-            <button id="modelBtn"><span id="modelBtnLabel">Nova AI</span>
+            <button id="modelBtn"><span id="modelBtnLabel">ONYX AI</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             <textarea id="chatInput" placeholder="Tulis pesan..." rows="1"></textarea>
@@ -837,12 +897,12 @@ const authError = document.getElementById('authError');
 function setMode(m){
   mode = m;
   if(m === 'login'){
-    authTitle.textContent = 'Masuk ke NOVA';
+    authTitle.textContent = 'Masuk ke ONYX';
     authSubmitBtn.textContent = 'Masuk';
     nameField.style.display = 'none';
     switchMode.innerHTML = 'Belum punya akun? <a id="switchLink">Daftar</a>';
   } else {
-    authTitle.textContent = 'Buat akun NOVA';
+    authTitle.textContent = 'Buat akun ONYX';
     authSubmitBtn.textContent = 'Daftar';
     nameField.style.display = 'block';
     switchMode.innerHTML = 'Sudah punya akun? <a id="switchLink">Masuk</a>';
@@ -965,7 +1025,7 @@ sidebarOverlay.addEventListener('click', closeSidebar);
 let conversations = [];
 let activeConvId = null;
 
-function storageKey(uid){ return `nova_chats_${uid}`; }
+function storageKey(uid){ return `onyx_chats_${uid}`; }
 function loadConversationsFromStorage(uid){
   try{
     const raw = localStorage.getItem(storageKey(uid));
@@ -1264,7 +1324,7 @@ async function downloadImage(src){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'nova-' + Date.now() + '.jpg';
+    a.download = 'onyx-' + Date.now() + '.jpg';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1454,7 +1514,7 @@ let currentModel = 'v2';
 const modelMenu = document.getElementById('modelMenu');
 const modelBtn = document.getElementById('modelBtn');
 const modelBtnLabel = document.getElementById('modelBtnLabel');
-modelBtnLabel.textContent = 'Nova AI v2.0';
+modelBtnLabel.textContent = 'ONYX AI v2.0';
 
 modelBtn.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1538,11 +1598,11 @@ async function handleSend(){
   }
 }
 
-// instruksi identitas — dikirim ke AI tiap request biar dia selalu ngaku sebagai Nova AI v1.0 buatan Kyro
-const NOVA_IDENTITY = `SYSTEM INSTRUCTION: Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
-Nama: NOVA AI
+// instruksi identitas — dikirim ke AI tiap request biar dia selalu ngaku sebagai ONYX AI v1.0 buatan Kyro
+const ONYX_IDENTITY = `SYSTEM INSTRUCTION: Kamu adalah ONYX AI, asisten AI yang dikembangkan oleh Kyro.
+Nama: ONYX AI
 Developer: Kyro
-- Jika ditanya siapa kamu, jawab bahwa kamu adalah NOVA AI.
+- Jika ditanya siapa kamu, jawab bahwa kamu adalah ONYX AI.
 - Jika ditanya siapa yang membuat kamu, jawab bahwa kamu dikembangkan oleh Kyro.
 - Jangan mengklaim sebagai model AI lain.
 - Gunakan bahasa yang sama dengan pengguna.
@@ -1570,23 +1630,23 @@ function truncateForContext(text, maxLen){
 // karena API chat ini stateless (cuma terima 1 parameter question tiap request).
 // instruksi identitas diulang di awal DAN akhir prompt biar lebih nempel ke jawaban (recency bias LLM).
 function buildPromptWithContext(conv, newQuestion){
-  let prompt = NOVA_IDENTITY + '\n\n' + CODE_FORMAT_INSTRUCTION;
+  let prompt = ONYX_IDENTITY + '\n\n' + CODE_FORMAT_INSTRUCTION;
   const historyMsgs = (conv ? conv.messages : []).filter(m => m.type !== 'image').slice(-8);
   if(historyMsgs.length > 0){
     let historyText = '';
     for(const m of historyMsgs){
-      const speaker = m.role === 'user' ? 'User' : 'Nova';
+      const speaker = m.role === 'user' ? 'User' : 'Onyx';
       historyText += `${speaker}: ${truncateForContext(m.text, 300)}\n`;
     }
     prompt += `\n\nRiwayat percakapan sebelumnya (buat konteks, jangan diulang-ulang):\n${historyText}`;
   }
-  prompt += `\n\n${NOVA_IDENTITY}\n\nUser: ${newQuestion}\nNova:`;
+  prompt += `\n\n${ONYX_IDENTITY}\n\nUser: ${newQuestion}\nOnyx:`;
   return prompt;
 }
 
 // versi konteks alternatif; semua model menerima prompt yang sama
 function buildPlainContext(conv, newQuestion){
-  let prompt = NOVA_IDENTITY + '\n\n' + CODE_FORMAT_INSTRUCTION;
+  let prompt = ONYX_IDENTITY + '\n\n' + CODE_FORMAT_INSTRUCTION;
   const historyMsgs = (conv ? conv.messages : []).filter(m => m.type !== 'image').slice(-8);
   if(historyMsgs.length > 0){
     let historyText = '';
@@ -1596,7 +1656,7 @@ function buildPlainContext(conv, newQuestion){
     }
     prompt += `\n\nRiwayat percakapan:\n${historyText}`;
   }
-  prompt += `\n\n${NOVA_IDENTITY}\n\nUser: ${newQuestion}`;
+  prompt += `\n\n${ONYX_IDENTITY}\n\nUser: ${newQuestion}`;
   return prompt;
 }
 
@@ -1623,6 +1683,7 @@ async function runAiCompletion(targetConvId, q, extra = {}){
   const conv = getConvById(targetConvId);
   const promptWithContext = buildPromptWithContext(conv, q);
   const loadingDiv = (targetConvId === activeConvId) ? addTypingBubble() : null;
+  if(targetConvId === activeConvId) setMascotState('reading');
   let answer = '';
   try{
     const payload = { question: promptWithContext, model: currentModel, stream: true };
@@ -1674,6 +1735,7 @@ async function runAiCompletion(targetConvId, q, extra = {}){
     if(targetConvId === activeConvId && loadingDiv){
       attachMessageActions(loadingDiv, 'ai', targetConvId, getConvById(targetConvId).messages.length - 1);
     }
+    if(targetConvId === activeConvId) setMascotState('happy');
   } catch(e){
     console.error('chat error:', e);
     if(targetConvId === activeConvId && loadingDiv){
@@ -1681,6 +1743,7 @@ async function runAiCompletion(targetConvId, q, extra = {}){
       loadingDiv.textContent = 'Backend error: ' + e.message;
       followScroll();
     }
+    if(targetConvId === activeConvId) setMascotState('idle');
   }
 }
 
@@ -1693,6 +1756,7 @@ async function sendImageMessage(prompt, existingConvId = activeConvId, generated
     attachMessageActions(userDiv, 'user', targetConvId, getConvById(targetConvId).messages.length - 1);
   }
   const loadingDiv = addTypingBubble();
+  if(targetConvId === activeConvId) setMascotState('reading');
   try{
     const res = await fetch(API.generateImage, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1710,12 +1774,14 @@ async function sendImageMessage(prompt, existingConvId = activeConvId, generated
       addImageMsg(dataUrl, 'ai');
     }
     persistMessage(targetConvId, 'ai', dataUrl, 'image');
+    if(targetConvId === activeConvId) setMascotState('happy');
   } catch(e){
     console.error('image gen error:', e);
     if(targetConvId === activeConvId && loadingDiv){
       loadingDiv.innerHTML = '';
       loadingDiv.textContent = 'Image gen error: ' + e.message;
     }
+    if(targetConvId === activeConvId) setMascotState('idle');
   }
 }
 
@@ -1823,6 +1889,140 @@ async function sendEditPhotoMessage(prompt, file){
   }
 }
 
+/* ============ ONYX Bot Mascot ============ */
+const mascotWidget = document.getElementById('mascotWidget');
+const mascotBtn = document.getElementById('mascotBtn');
+const mascotPanel = document.getElementById('mascotPanel');
+const mascotMuteBtn = document.getElementById('mascotMuteBtn');
+const mascotMouth = document.getElementById('mascotMouth');
+const mascotEyeL = document.getElementById('mascotEyeL');
+const mascotEyeR = document.getElementById('mascotEyeR');
+
+const MASCOT_KEY = 'onyx_bot_settings';
+const EMOTE_MOUTHS = {
+  default: 'M9.5 15.2 Q12 16.6 14.5 15.2',
+  happy:   'M9 14.6 Q12 18 15 14.6',
+  cool:    'M9.5 15.6 L14.5 15.6',
+  sleepy:  'M9.8 15.4 Q12 15 14.2 15.4'
+};
+function loadMascotSettings(){
+  try{
+    const raw = localStorage.getItem(MASCOT_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch{}
+  return { emote:'default', color:'#9F8CFF', muted:false };
+}
+let mascotSettings = loadMascotSettings();
+function saveMascotSettings(){
+  try{ localStorage.setItem(MASCOT_KEY, JSON.stringify(mascotSettings)); }catch{}
+}
+function applyMascotSettings(){
+  mascotWidget.style.setProperty('--mascot-color', mascotSettings.color);
+  mascotMouth.setAttribute('d', EMOTE_MOUTHS[mascotSettings.emote] || EMOTE_MOUTHS.default);
+  if(mascotSettings.emote === 'sleepy'){
+    mascotEyeL.setAttribute('ry','0.5'); mascotEyeL.setAttribute('rx','1.6');
+    mascotEyeR.setAttribute('ry','0.5'); mascotEyeR.setAttribute('rx','1.6');
+  } else {
+    mascotEyeL.removeAttribute('ry'); mascotEyeL.removeAttribute('rx');
+    mascotEyeR.removeAttribute('ry'); mascotEyeR.removeAttribute('rx');
+  }
+  document.querySelectorAll('.mascot-emote-btn').forEach(b => b.classList.toggle('active', b.dataset.emote === mascotSettings.emote));
+  document.querySelectorAll('.mascot-color-dot').forEach(b => b.classList.toggle('active', b.dataset.color.toLowerCase() === mascotSettings.color.toLowerCase()));
+  mascotMuteBtn.textContent = mascotSettings.muted ? '🔇' : '🔊';
+  mascotMuteBtn.classList.toggle('active', mascotSettings.muted);
+}
+applyMascotSettings();
+
+mascotBtn.addEventListener('click', () => { mascotPanel.classList.toggle('show'); });
+document.addEventListener('click', (e) => {
+  if(!mascotWidget.contains(e.target)) mascotPanel.classList.remove('show');
+});
+document.querySelectorAll('.mascot-emote-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    mascotSettings.emote = btn.dataset.emote;
+    saveMascotSettings(); applyMascotSettings();
+  });
+});
+document.querySelectorAll('.mascot-color-dot').forEach(btn => {
+  btn.addEventListener('click', () => {
+    mascotSettings.color = btn.dataset.color;
+    saveMascotSettings(); applyMascotSettings();
+  });
+});
+mascotMuteBtn.addEventListener('click', () => {
+  mascotSettings.muted = !mascotSettings.muted;
+  saveMascotSettings(); applyMascotSettings();
+});
+
+// beep pendek pakai Web Audio API, gak butuh file suara eksternal
+function playMascotChime(){
+  if(mascotSettings.muted) return;
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(760, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1080, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.24);
+  }catch{}
+}
+
+// dipanggil dari runAiCompletion/sendImageMessage dkk buat nunjukin bot lagi "baca" respons AI
+function setMascotState(state){
+  mascotWidget.classList.remove('reading', 'happy');
+  if(state === 'reading'){
+    mascotWidget.classList.add('reading');
+  } else if(state === 'happy'){
+    mascotWidget.classList.add('happy');
+    playMascotChime();
+    setTimeout(() => mascotWidget.classList.remove('happy'), 550);
+  }
+}
+
 </script>
+<div id="mascotWidget">
+  <div id="mascotPanel">
+    <div class="mascot-panel-title"><span class="dot"></span> ONYX Bot</div>
+    <div class="mascot-row">
+      <div class="mascot-row-label">Ekspresi</div>
+      <div class="mascot-emote-options">
+        <button class="mascot-emote-btn" data-emote="default" title="Default">🤖</button>
+        <button class="mascot-emote-btn" data-emote="happy" title="Senang">😊</button>
+        <button class="mascot-emote-btn" data-emote="cool" title="Cool">😎</button>
+        <button class="mascot-emote-btn" data-emote="sleepy" title="Ngantuk">😴</button>
+      </div>
+    </div>
+    <div class="mascot-row">
+      <div class="mascot-row-label">Warna</div>
+      <div class="mascot-color-options">
+        <button class="mascot-color-dot" data-color="#9F8CFF" style="background:#9F8CFF" title="Violet"></button>
+        <button class="mascot-color-dot" data-color="#2DD4C8" style="background:#2DD4C8" title="Teal"></button>
+        <button class="mascot-color-dot" data-color="#FF7A6E" style="background:#FF7A6E" title="Coral"></button>
+        <button class="mascot-color-dot" data-color="#FF8FD6" style="background:#FF8FD6" title="Pink"></button>
+        <button class="mascot-color-dot" data-color="#5BA8FF" style="background:#5BA8FF" title="Biru"></button>
+      </div>
+    </div>
+    <div class="mascot-row" id="mascotMuteRow">
+      <div class="mascot-row-label" style="margin-bottom:0;">Suara</div>
+      <button id="mascotMuteBtn" title="Mute / Unmute">🔊</button>
+    </div>
+  </div>
+  <button id="mascotBtn" title="Pengaturan ONYX Bot">
+    <svg id="mascotSvg" width="30" height="30" viewBox="0 0 24 24" fill="none">
+      <circle class="mascot-antenna-dot" cx="12" cy="2.6" r="1.3"></circle>
+      <line x1="12" y1="4" x2="12" y2="6" stroke="var(--muted)" stroke-width="1.4"></line>
+      <rect x="4.5" y="6" width="15" height="12" rx="5" class="mascot-face" stroke-width="1.7"></rect>
+      <circle class="mascot-eye" id="mascotEyeL" cx="9.5" cy="12" r="1.6"></circle>
+      <circle class="mascot-eye" id="mascotEyeR" cx="14.5" cy="12" r="1.6"></circle>
+      <path id="mascotMouth" d="M9.5 15.2 Q12 16.6 14.5 15.2" stroke="var(--muted)" stroke-width="1.4" stroke-linecap="round" fill="none"></path>
+    </svg>
+    <span id="mascotStatusDot"></span>
+  </button>
+</div>
+
 </body>
 </html>
