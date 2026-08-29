@@ -14,6 +14,9 @@
   ],
   "author": "Kyro",
   "license": "MIT",
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@huggingface/inference": "^4.13.11",
     "openai": "^5.0.0"

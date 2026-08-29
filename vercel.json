@@ -5,8 +5,7 @@
   "outputDirectory": ".",
   "functions": {
     "api/**/*.js": {
-      "maxDuration": 60,
-      "runtime": "nodejs22.x"
+      "maxDuration": 60
     }
   },
   "rewrites": [
