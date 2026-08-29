@@ -73,7 +73,8 @@ function wantsStream(req, body) {
 }
 
 function normalizeModel(value) {
-  return MODELS[String(value || "v2")] ? String(value) : "v2";
+  const key = String(value || "v2");
+  return MODELS[key] ? key : "v2";
 }
 
 function shouldSearch(question) {
