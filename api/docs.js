@@ -3,7 +3,7 @@
  * Akses via: /api/docs
  */
 
-module.exports = (req, res) => {
+export default (req, res) => {
   // Optional: Check auth header if needed
   // const auth = req.headers.authorization;
   // if (!auth) return res.status(401).json({ error: 'Unauthorized' });
@@ -24,7 +24,7 @@ module.exports = (req, res) => {
         method: 'POST',
         path: '/api/upload-image',
         description: 'Upload image ke server',
-        body: { FormData dengan file: 'image/*' },
+        body: { form_data: 'multipart/form-data dengan field file: image/*' },
         response: { status: 'boolean', url: 'string' }
       },
       {

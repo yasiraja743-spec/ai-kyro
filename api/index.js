@@ -3,7 +3,7 @@
  * Redirect & serve info
  */
 
-module.exports = (req, res) => {
+export default (req, res) => {
   // Redirect api-docs.html ke /api/docs
   if (req.url === '/api-docs.html' || req.url === '/api-docs') {
     res.writeHead(301, { Location: '/api/docs' });
