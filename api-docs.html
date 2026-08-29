@@ -9,22 +9,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #0A0C12;
-    --surface: #12141C;
-    --surface-2: #191C27;
-    --border: #2A2E3D;
-    --accent: #D4AF37;
-    --accent-2: #F3D477;
-    --accent-soft: rgba(212,175,55,0.14);
-    --text: #F4F1E8;
-    --muted: #93917F;
+    --bg: #0A0B14;
+    --surface: #12131F;
+    --surface-2: #191B29;
+    --border: #2A2C3D;
+    --accent: #6C5CE7;
+    --accent-2: #9F8CFF;
+    --accent-soft: rgba(108,92,231,0.16);
+    --text: #F1F0F7;
+    --muted: #8B8A9E;
   }
   *{ box-sizing: border-box; margin:0; padding:0; }
   html,body{ min-height:100%; }
   body{
     background:
-      radial-gradient(1100px 620px at 12% -8%, rgba(212,175,55,0.10), transparent 55%),
-      radial-gradient(900px 560px at 100% 0%, rgba(212,175,55,0.06), transparent 50%),
+      radial-gradient(1100px 620px at 12% -8%, rgba(108,92,231,0.16), transparent 55%),
+      radial-gradient(900px 560px at 100% 0%, rgba(45,212,200,0.10), transparent 50%),
       var(--bg);
     color: var(--text);
     font-family:'Inter', sans-serif;
@@ -36,7 +36,7 @@
 
   #topBar{ display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--border); background: var(--surface); position:sticky; top:0; z-index:10; }
   .logo{ display:flex; align-items:center; gap:9px; font-family:'Space Grotesk'; font-weight:700; font-size:16px; }
-  .logo .dot{ width:9px; height:9px; border-radius:50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow:0 0 12px rgba(212,175,55,0.65); }
+  .logo .dot{ width:9px; height:9px; border-radius:50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow:0 0 12px rgba(108,92,231,0.65); }
   #backBtn{
     background: var(--surface-2); border:1px solid var(--border); color:var(--text);
     padding:8px 13px; border-radius:12px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Inter';
@@ -80,14 +80,14 @@
   }
   .doc-field input:focus, .doc-field textarea:focus{ outline:none; border-color: var(--accent); }
   .doc-try-btn{
-    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#1A1406; font-weight:700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#FFFFFF; font-weight:700;
     border:none; padding:10px 20px; border-radius:12px; cursor:pointer; font-size:13.5px; font-family:'Inter';
-    box-shadow: 0 8px 20px rgba(212,175,55,0.28); display:flex; align-items:center; gap:7px;
+    box-shadow: 0 8px 20px rgba(108,92,231,0.28); display:flex; align-items:center; gap:7px;
   }
   .doc-try-btn:hover{ filter:brightness(1.08); }
   .doc-try-btn:disabled{ opacity:0.55; cursor:not-allowed; }
 
-  .doc-url-box{ margin-top:14px; background: var(--surface-2); border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:11px 14px; display:none; }
+  .doc-url-box{ margin-top:14px; background: var(--surface-2); border:1px solid rgba(108,92,231,0.3); border-radius:12px; padding:11px 14px; display:none; }
   .doc-url-box.show{ display:block; }
   .doc-url-box .doc-response-label{ color: var(--accent-2); }
   .doc-url-box pre{ font-family:'JetBrains Mono'; font-size:12px; white-space:pre-wrap; word-break:break-all; }
@@ -105,7 +105,7 @@
     display:flex; align-items:center; justify-content:center;
   }
   .doc-page-btn:hover{ border-color: var(--accent); color: var(--accent-2); }
-  .doc-page-btn.active{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#1A1406; border-color:transparent; }
+  .doc-page-btn.active{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#FFFFFF; border-color:transparent; }
   .doc-page-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 </style>
 </head>
