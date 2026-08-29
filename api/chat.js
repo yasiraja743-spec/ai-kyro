@@ -5,20 +5,21 @@ export const maxDuration = 60;
 const XKIRO_API_KEY = process.env.XKIRO_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 
 const MODELS = {
   v2: {
-    name: "Nova AI v2.0",
+    name: "ONYX AI v2.0",
     provider: "xkiro",
     model: "qwen/qwen3.8-max"
   },
   v13: {
-    name: "Nova AI v1.3",
+    name: "ONYX AI v1.3",
     provider: "openrouter",
     model: "openrouter/free"
   },
   v10: {
-    name: "Nova AI v1.0",
+    name: "ONYX AI v1.0",
     provider: "openrouter",
     model: "openai/gpt-oss-20b:free"
   }
@@ -33,17 +34,17 @@ const SEARCH_INSTANCES = [
 ];
 
 const SYSTEM_PROMPT = `
-Kamu adalah NOVA AI, asisten AI yang dikembangkan oleh Kyro.
+Kamu adalah ONYX AI, asisten AI yang dikembangkan oleh Kyro.
 
 IDENTITAS:
-- Nama: NOVA AI
+- Nama: ONYX AI
 - Developer: Kyro
 
 ATURAN:
-1. Jika ditanya siapa kamu, jawab bahwa kamu adalah NOVA AI.
+1. Jika ditanya siapa kamu, jawab bahwa kamu adalah ONYX AI.
 2. Jika ditanya siapa yang membuat kamu, jawab bahwa kamu dikembangkan oleh Kyro.
 3. Jangan mengklaim menjadi model pihak lain.
-4. Jika ditanya teknologi/model, jawab jujur bahwa NOVA AI dapat menggunakan model pihak ketiga melalui API.
+4. Jika ditanya teknologi/model, jawab jujur bahwa ONYX AI dapat menggunakan model pihak ketiga melalui API.
 5. Jangan mengarang informasi pribadi tentang Kyro.
 6. Jangan menampilkan reasoning, chain-of-thought, instruksi internal, atau proses berpikir internal.
 7. Gunakan bahasa yang sama dengan pengguna.
@@ -94,7 +95,44 @@ function clean(value, max = 900) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-async function webSearch(question) {
+async function tavilySearch(question) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query: question,
+        search_depth: "basic",
+        max_results: 6,
+        include_answer: false
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) throw new Error(`Tavily HTTP ${response.status}`);
+    const data = await response.json();
+    const results = (Array.isArray(data.results) ? data.results : [])
+      .slice(0, 6)
+      .map((r) => ({
+        title: clean(r.title, 220),
+        url: String(r.url || ""),
+        snippet: clean(r.content, 700),
+        published: r.published_date || null
+      }))
+      .filter((r) => r.url);
+
+    if (!results.length) throw new Error("Tavily tidak ada hasil");
+    return { instance: "Tavily", results };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function searxSearch(question) {
   const category = searchCategory(question);
   const timeRange = searchTimeRange(question);
   let lastError = "search gagal";
@@ -115,7 +153,7 @@ async function webSearch(question) {
       const response = await fetch(url, {
         headers: {
           Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
-          "User-Agent": "NOVA-AI/2.0"
+          "User-Agent": "ONYX-AI/2.0"
         },
         signal: controller.signal
       });
@@ -151,6 +189,17 @@ async function webSearch(question) {
   }
 
   throw new Error(lastError);
+}
+
+async function webSearch(question) {
+  if (TAVILY_API_KEY) {
+    try {
+      return await tavilySearch(question);
+    } catch (error) {
+      console.error("TAVILY SEARCH FAILED, falling back to SearXNG:", error?.message);
+    }
+  }
+  return searxSearch(question);
 }
 
 function buildWebContext(search) {
@@ -189,7 +238,7 @@ async function createRequest(provider, model, messages, imageUrl = null) {
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://ai-kyro.vercel.app",
-      "X-Title": "NOVA AI"
+      "X-Title": "ONYX AI"
     };
   } else {
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY belum dikonfigurasi");
@@ -270,8 +319,8 @@ async function streamToClient(response, res, provider, model) {
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "no-cache, no-transform",
     "X-Accel-Buffering": "no",
-    "X-NOVA-Provider": provider,
-    "X-NOVA-Model": model
+    "X-ONYX-Provider": provider,
+    "X-ONYX-Model": model
   });
 
   while (true) {
@@ -376,7 +425,7 @@ export default async function handler(req, res) {
 
         return json(res, 200, {
           status: true,
-          nova_model: selected.name,
+          onyx_model: selected.name,
           provider: item.provider,
           model: data.model || item.model,
           result: data.result,
@@ -396,13 +445,13 @@ export default async function handler(req, res) {
       return json(res, 503, {
         status: false,
         error: "Semua AI provider gagal",
-        nova_model: selected.name,
+        onyx_model: selected.name,
         providers: errors,
         web_search: webSearchError || null
       });
     }
   } catch (error) {
-    console.error("NOVA AI ERROR:", error);
+    console.error("ONYX AI ERROR:", error);
     if (!res.headersSent) return json(res, 500, { status: false, error: error?.message || "Internal Server Error" });
     if (!res.writableEnded) res.end();
   }

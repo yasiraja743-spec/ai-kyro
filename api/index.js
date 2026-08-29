@@ -13,7 +13,7 @@ export default (req, res) => {
 
   // Info endpoint
   const info = {
-    name: 'NOVA AI',
+    name: 'ONYX AI',
     version: '1.0',
     status: 'running',
     endpoints: {

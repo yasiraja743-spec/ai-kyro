@@ -5,11 +5,48 @@ const INSTANCES = [
   "https://searx.ninja"
 ];
 
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+
 function cleanText(value, max = 700) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, max);
+}
+
+async function tavilySearch(q) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query: q,
+        search_depth: "basic",
+        max_results: 6,
+        include_answer: false
+      }),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`Tavily HTTP ${response.status}`);
+    const data = await response.json();
+    const results = (Array.isArray(data.results) ? data.results : [])
+      .slice(0, 6)
+      .map((r) => ({
+        title: cleanText(r.title, 220),
+        url: String(r.url || ""),
+        snippet: cleanText(r.content, 700),
+        published: r.published_date || null,
+        source: "tavily"
+      }))
+      .filter((r) => r.url);
+    if (!results.length) throw new Error("Tavily tidak ada hasil");
+    return { instance: "Tavily", results };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export default async function handler(req, res) {
@@ -31,6 +68,15 @@ export default async function handler(req, res) {
   const category = String(req.query?.category || "general");
   const timeRange = req.query?.time_range ? String(req.query.time_range) : "";
 
+  if (TAVILY_API_KEY) {
+    try {
+      const tavilyResult = await tavilySearch(q);
+      return res.status(200).json({ status: true, query: q, source: "Tavily", ...tavilyResult });
+    } catch (error) {
+      console.error("TAVILY SEARCH FAILED, falling back to SearXNG:", error?.message);
+    }
+  }
+
   let lastError = "Semua SearXNG instance gagal";
 
   for (const base of INSTANCES) {
@@ -49,7 +95,7 @@ export default async function handler(req, res) {
       const response = await fetch(url, {
         headers: {
           "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
-          "User-Agent": "NOVA-AI/2.0 WebSearch"
+          "User-Agent": "ONYX-AI/2.0 WebSearch"
         },
         signal: controller.signal
       });

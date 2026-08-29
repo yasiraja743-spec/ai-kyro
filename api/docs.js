@@ -9,7 +9,7 @@ export default (req, res) => {
   // if (!auth) return res.status(401).json({ error: 'Unauthorized' });
 
   const docs = {
-    title: 'NOVA AI API Documentation',
+    title: 'ONYX AI API Documentation',
     version: '1.0.0',
     baseUrl: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000',
     endpoints: [
