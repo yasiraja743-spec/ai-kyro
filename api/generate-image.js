@@ -1,5 +1,3 @@
-import { generatePollinationsImage } from "./_image.js";
-
 export default async function handler(req, res) {
   try {
     let prompt = "";
@@ -24,7 +22,26 @@ export default async function handler(req, res) {
       });
     }
 
-    const { buffer, mime } = await generatePollinationsImage(prompt);
+    const url =
+      "https://image.pollinations.ai/prompt/" +
+      encodeURIComponent(prompt) +
+      "?width=768&height=768&nologo=true&enhance=true";
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+
+      return res.status(500).json({
+        status: false,
+        error: `Image provider HTTP ${response.status}`,
+        detail: errorText.slice(0, 500)
+      });
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const mime =
+      response.headers.get("content-type") || "image/jpeg";
 
     res.statusCode = 200;
     res.setHeader("Content-Type", mime);
@@ -38,8 +55,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({
       status: false,
-      error: e.message || "Image generation failed",
-      detail: e.detail
+      error: e.message || "Image generation failed"
     });
   }
 }

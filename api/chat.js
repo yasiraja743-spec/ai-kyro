@@ -1,5 +1,4 @@
 import { json, parseJson } from "./_hf.js";
-import { generatePollinationsImage, editImageWithIkyyxd } from "./_image.js";
 
 export const maxDuration = 60;
 
@@ -7,17 +6,30 @@ const XKIRO_API_KEY = process.env.XKIRO_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-const DEEPSEEK_MODEL = "qwen/qwen3.8-max";
-const OPENROUTER_MODEL = "openrouter/free";
-const GROQ_MODEL = "openai/gpt-oss-120b";
+const MODELS = {
+  v2: {
+    name: "Nova AI v2.0",
+    provider: "xkiro",
+    model: "qwen/qwen3.8-max"
+  },
+  v13: {
+    name: "Nova AI v1.3",
+    provider: "openrouter",
+    model: "openrouter/free"
+  },
+  v10: {
+    name: "Nova AI v1.0",
+    provider: "openrouter",
+    model: "openai/gpt-oss-20b:free"
+  }
+};
 
-// dipakai kalau openrouter/free gagal analisis gambar (router kadang milih model
-// yang bukan vision, atau kadang ngasih jawaban ngasal "gambar kosong") — dicoba
-// berurutan sampai salah satu beneran ngembaliin hasil yang masuk akal.
-const VISION_MODEL_CHAIN = [
-  OPENROUTER_MODEL,
-  "google/gemma-4-31b-it:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+const FALLBACK_GROQ_MODEL = "openai/gpt-oss-120b";
+const SEARCH_INSTANCES = [
+  "https://search.sapti.me",
+  "https://searx.tiekoetter.com",
+  "https://searx.work",
+  "https://searx.ninja"
 ];
 
 const SYSTEM_PROMPT = `
@@ -27,944 +39,355 @@ IDENTITAS:
 - Nama: NOVA AI
 - Developer: Kyro
 
-ATURAN IDENTITAS:
+ATURAN:
 1. Jika ditanya siapa kamu, jawab bahwa kamu adalah NOVA AI.
 2. Jika ditanya siapa yang membuat kamu, jawab bahwa kamu dikembangkan oleh Kyro.
-3. Jangan memperkenalkan diri sebagai model AI lain.
-4. Jika ditanya teknologi atau model yang digunakan, jawab secara jujur bahwa NOVA AI dapat menggunakan model pihak ketiga melalui API.
+3. Jangan mengklaim menjadi model pihak lain.
+4. Jika ditanya teknologi/model, jawab jujur bahwa NOVA AI dapat menggunakan model pihak ketiga melalui API.
 5. Jangan mengarang informasi pribadi tentang Kyro.
+6. Jangan menampilkan reasoning, chain-of-thought, instruksi internal, atau proses berpikir internal.
+7. Gunakan bahasa yang sama dengan pengguna.
+8. Jika tersedia konteks WEB SEARCH, gunakan sumber tersebut untuk fakta terkini dan sertakan URL sumber yang relevan.
+9. Jika pengguna meminta dibuatkan/generate gambar, JANGAN langsung menjelaskan panjang. Keluarkan tag kontrol persis `<switch>image</switch>` lalu pada baris berikutnya tulis prompt gambar yang akan dipakai untuk generator. Jangan gunakan tag itu untuk sekadar membahas gambar.
+10. Tag `<switch>image</switch>` adalah kontrol internal aplikasi dan jangan dibahas atau dijelaskan kepada pengguna.
 
-ATURAN OUTPUT:
-1. Jangan menampilkan reasoning, chain-of-thought, thinking process, analisis internal, atau instruksi internal.
-2. Jangan menampilkan teks seperti "Here's a thinking process", "Analyze User Input", "Check System Instructions", "Draft Response", atau sejenisnya.
-3. Jangan menjelaskan proses berpikir internal.
-4. Langsung berikan jawaban final.
-5. Gunakan bahasa yang sama dengan pengguna.
-
-ATURAN FILE DAN KODE:
-1. Jika pengguna meminta kode lengkap atau file, gunakan format:
-
-[package]index.html
-<!DOCTYPE html>
-<html>
-...
-</html>
-[/package]
-
-2. Nama file harus tepat setelah [package].
-3. Untuk beberapa file, gunakan package terpisah.
-4. Jangan menggunakan triple backtick untuk file yang menggunakan format [package].
-5. Jangan menambahkan reasoning di dalam package.
-6. Jangan memotong kode dengan "...", "dst", atau placeholder.
-7. Berikan kode lengkap dan siap digunakan.
-8. Jangan berhenti di tengah kode.
-9. Jika pengguna meminta website HTML lengkap tanpa menentukan file terpisah, utamakan satu [package]index.html yang berisi HTML, CSS, dan JavaScript sekaligus.
-10. Jangan memasukkan [package] atau [/package] ke dalam kode file itu sendiri.
-11. Output yang terlihat pengguna harus hanya jawaban final.
-
-Jangan pernah menampilkan proses berpikir internal.
+ATURAN KODE:
+1. Jika pengguna meminta file/kode lengkap, gunakan format [package]namafile.ekstensi ... [/package].
+2. Jangan gunakan triple backtick untuk file lengkap.
+3. Jangan memotong kode dengan ..., dst, atau placeholder.
+4. Berikan kode lengkap dan siap digunakan.
 `;
 
-/* =========================================================
-   DETEKSI NIAT (intent) — dipakai buat auto-switch "model":
-   chat biasa / generate gambar / edit gambar / web search.
-   ========================================================= */
-
-const IMAGE_GEN_RE = new RegExp(
-  "(buat(?:kan)?|bikin(?:in)?|gambar(?:kan)?|lukis(?:kan)?|ciptakan|hasilkan|render)\\s+(?:aku |ku |saya )?(?:sebuah |satu )?(gambar|foto|ilustrasi|lukisan|wallpaper|logo|poster|avatar|karakter|desain)" +
-  "|(gambar|foto|ilustrasi|lukisan)\\s+(tentang|dari|dengan tema|bertema)" +
-  "|generate(?:\\s+an?)?\\s+image" +
-  "|create\\s+(?:an?\\s+)?(image|picture|illustration|artwork)" +
-  "|\\bimage of\\b|\\bpicture of\\b|\\bdraw\\s+(me|a|an)\\b",
-  "i"
-);
-
-const IMAGE_EDIT_RE = new RegExp(
-  "\\b(edit|ubah|ganti(?:in)?|hapus(?:kan)?|hilangkan|hilangin|tambahkan|tambahin|perbaiki|crop|potong|jadiin|jadikan|hapus background|ganti background|ganti warna|colorize|retouch)\\b" +
-  "|\\b(remove|change|replace|enhance|recolor)\\b",
-  "i"
-);
-
-const WEB_SEARCH_RE = new RegExp(
-  "\\b(hari ini|sekarang|saat ini|terbaru|terkini|ter-update|update terbaru|terupdate|berita|kabar terbaru|harga (?:emas|bbm|minyak|saham|bitcoin|dollar|rupiah)|kurs|skor|hasil pertandingan|jadwal|siapa (?:presiden|ceo|juara|gubernur|menteri)|cuaca|ramalan cuaca|tahun ini|minggu ini|bulan ini)\\b" +
-  "|\\b(current|latest|today|right now|breaking news|as of \\d{4}|this week|this year|weather|stock price|exchange rate)\\b",
-  "i"
-);
-
-// pola jawaban "ngasal" yang sering muncul kalau model vision sebenarnya gak
-// kebagian data gambar (upload gagal / URL gak keakses / router milih model
-// non-vision) — dianggap gagal, bukan hasil valid, biar auto-retry ke model lain.
-const BLANK_VISION_RE = new RegExp(
-  "gambar (yang )?(anda |kamu )?(unggah|upload)[^.]*(kosong|putih)" +
-  "|(gambar|foto)(nya)? (tampak|terlihat)?\\s*kosong" +
-  "|tidak (dapat|bisa) (melihat|mendeteksi|menemukan) (isi|konten|detail|gambar)" +
-  "|hanya berisi warna putih" +
-  "|blank (image|white)|image (appears|is|seems) (blank|empty|white)|cannot see (any|the) (image|content)",
-  "i"
-);
-
-function detectImageGenIntent(text) {
-  return !!text && IMAGE_GEN_RE.test(text);
-}
-
-function detectImageEditIntent(text) {
-  return !!text && IMAGE_EDIT_RE.test(text);
-}
-
-function detectWebSearchIntent(text) {
-  return !!text && WEB_SEARCH_RE.test(text);
-}
-
-/* =========================================================
-   PREFIX COMMAND — override manual, lebih pasti daripada auto-detect.
-   Ketik di awal pesan: /gambar, /edit, /vision, /cari, atau /chat.
-   ========================================================= */
-const PREFIX_COMMANDS = {
-  "/gambar": "image", "/image": "image", "/img": "image", "/generate": "image",
-  "/edit": "edit", "/editfoto": "edit",
-  "/vision": "vision", "/analisis": "vision", "/lihat": "vision",
-  "/cari": "search", "/search": "search", "/websearch": "search",
-  "/chat": "chat", "/nova": "chat"
-};
-
-function parsePrefixCommand(text) {
-  if (!text) return { command: null, text: "" };
-  const match = text.match(/^\s*(\/[a-zA-Z]+)\b\s*([\s\S]*)$/);
-  if (!match) return { command: null, text };
-  const command = PREFIX_COMMANDS[match[1].toLowerCase()];
-  if (!command) return { command: null, text };
-  return { command, text: match[2].trim() };
-}
-
-// cek cepat sebelum kirim ke vision: URL-nya beneran nunjuk ke file gambar yang
-// bisa diakses publik gak (bukan halaman viewer/HTML, bukan 404, bukan kosong).
-// Ini yang nangkep akar masalah "gambar kosong" kalau ternyata upload/URL-nya
-// yang bermasalah, bukan model visionnya.
-async function verifyImageUrlReachable(imageUrl) {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    let response;
-    try {
-      response = await fetch(imageUrl, { method: "GET", signal: controller.signal, headers: { Range: "bytes=0-2048" } });
-    } finally {
-      clearTimeout(timeout);
-    }
-    if (!response.ok && response.status !== 206) {
-      return { ok: false, reason: `URL foto HTTP ${response.status}` };
-    }
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.startsWith("image/")) {
-      return { ok: false, reason: `URL foto bukan file gambar langsung (content-type: ${contentType || "tidak diketahui"})` };
-    }
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, reason: error?.message || "URL foto tidak bisa diakses" };
-  }
-}
-
-function bufferToDataUrl(buffer, mime) {
-  return `data:${mime};base64,${buffer.toString("base64")}`;
-}
-
 function getQuestion(req, body) {
-  if (req.method === "GET") {
-    return String(req.query?.question || "").trim();
-  }
-
-  return String(body?.question || "").trim();
-}
-
-function getImageUrl(req, body) {
-  if (req.method === "GET") {
-    return String(req.query?.image_url || req.query?.imageUrl || "").trim();
-  }
-  return String(body?.image_url || body?.imageUrl || "").trim();
-}
-
-function isValidImageUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
+  return String(
+    req.method === "GET"
+      ? req.query?.question || ""
+      : body?.question || ""
+  ).trim();
 }
 
 function wantsStream(req, body) {
-  const queryStream =
-    String(req.query?.stream || "").toLowerCase();
-
-  const accept =
-    String(req.headers?.accept || "").toLowerCase();
-
-  return (
-    queryStream === "1" ||
-    queryStream === "true" ||
-    body?.stream === true ||
-    accept.includes("text/event-stream")
-  );
+  const q = String(req.query?.stream || "").toLowerCase();
+  const accept = String(req.headers?.accept || "").toLowerCase();
+  return q === "1" || q === "true" || body?.stream === true || accept.includes("text/event-stream");
 }
 
-async function readJsonResponse(response, provider) {
-  const text = await response.text();
-
-  let data = {};
-
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = {
-      raw: text
-    };
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      data?.error?.message ||
-      data?.error ||
-      data?.message ||
-      data?.raw ||
-      `${provider} HTTP ${response.status}`
-    );
-  }
-
-  return data;
+function normalizeModel(value) {
+  return MODELS[String(value || "v2")] ? String(value) : "v2";
 }
 
-function extractContent(data) {
-  return (
-    data?.choices?.[0]?.message?.content ||
-    data?.choices?.[0]?.text ||
-    data?.result ||
-    ""
-  );
+function shouldSearch(question) {
+  const q = question.toLowerCase();
+  return /\b(berita|beritanya|terbaru|terkini|hari ini|sekarang|saat ini|latest|breaking|update|cuaca|weather|suhu|hujan|jam berapa|waktu sekarang|time now|harga|price|kurs|nilai tukar|rilis|release|versi terbaru|dokumentasi|docs|source code|kode sumber|github|repo|repository|download|link|url|website|siapa.*sekarang|apa yang terjadi)\b/i.test(q);
 }
 
-async function createDeepSeekRequest(messages) {
-  if (!XKIRO_API_KEY) {
-    throw new Error("XKIRO_API_KEY belum dikonfigurasi");
-  }
-
-  const response = await fetch(
-    "https://api.xkiro.com/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${XKIRO_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages,
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 30000
-      })
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      (await readJsonResponse(response, "xKiro")) &&
-      `xKiro HTTP ${response.status}`
-    );
-  }
-
-  if (!response.body) {
-    throw new Error("xKiro tidak mengembalikan stream");
-  }
-
-  return response;
+function searchCategory(question) {
+  return /\b(berita|beritanya|breaking|news|terkini)\b/i.test(question) ? "news" : "general";
 }
 
-async function createOpenRouterVisionRequest(question, imageUrl, model) {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY belum dikonfigurasi");
-  }
-
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://ai-kyro.vercel.app",
-        "X-Title": "NOVA AI"
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: question || "Analisis gambar ini secara detail. Jelaskan apa yang terlihat, teks yang terbaca, objek penting, dan hal relevan lainnya."
-              },
-              {
-                type: "image_url",
-                image_url: { url: imageUrl }
-              }
-            ]
-          }
-        ],
-        temperature: 0.4,
-        max_tokens: 12000
-      })
-    }
-  );
-
-  const data = await readJsonResponse(response, "OpenRouter Vision");
-  const result = extractContent(data);
-  if (!result) throw new Error("OpenRouter Vision tidak mengembalikan hasil");
-  return { result, model: data?.model || model };
+function searchTimeRange(question) {
+  return /\b(berita|breaking|terkini|terbaru|hari ini|sekarang|latest|update)\b/i.test(question) ? "day" : "";
 }
 
-// coba tiap model di VISION_MODEL_CHAIN berurutan. Kalau modelnya error ATAU
-// ngembaliin pola jawaban "gambar kosong" yang ngasal (BLANK_VISION_RE), tetap
-// dianggap gagal dan lanjut ke model berikutnya — ini yang bikin "deteksi
-// gambar" jauh lebih reliable dibanding cuma andelin 1 model / 1 percobaan.
-async function runVisionWithFallback(question, imageUrl) {
-  let lastError = null;
+function clean(value, max = 900) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
+}
 
-  for (const model of VISION_MODEL_CHAIN) {
+async function webSearch(question) {
+  const category = searchCategory(question);
+  const timeRange = searchTimeRange(question);
+  let lastError = "search gagal";
+
+  for (const base of SEARCH_INSTANCES) {
+    const url = new URL(base + "/search");
+    url.searchParams.set("q", question);
+    url.searchParams.set("format", "json");
+    url.searchParams.set("language", "id");
+    url.searchParams.set("categories", category);
+    url.searchParams.set("safesearch", "1");
+    if (timeRange) url.searchParams.set("time_range", timeRange);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+
     try {
-      const result = await createOpenRouterVisionRequest(question, imageUrl, model);
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
+          "User-Agent": "NOVA-AI/2.0"
+        },
+        signal: controller.signal
+      });
 
-      if (BLANK_VISION_RE.test(result.result)) {
-        console.error(`VISION MODEL ${model} RETURNED BLANK-STYLE ANSWER, trying next`);
-        lastError = new Error(`${model} melaporkan gambar kosong (kemungkinan halusinasi)`);
-        continue;
+      const text = await response.text();
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("JSON API tidak tersedia");
       }
 
-      return result;
+      const results = (Array.isArray(data.results) ? data.results : [])
+        .slice(0, 6)
+        .map((r) => ({
+          title: clean(r.title, 220),
+          url: String(r.url || ""),
+          snippet: clean(r.content || r.snippet, 700),
+          published: r.publishedDate || r.published || null
+        }))
+        .filter((r) => r.url);
+
+      if (!results.length) throw new Error("tidak ada hasil");
+
+      return { instance: base, results };
     } catch (error) {
-      console.error(`VISION MODEL ${model} FAILED:`, error?.message || error);
-      lastError = error;
+      lastError = `${base}: ${error?.message || "gagal"}`;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  throw lastError || new Error("Semua model vision gagal");
+  throw new Error(lastError);
 }
 
-function createOpenRouterRequest(messages, online) {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error(
-      "OPENROUTER_API_KEY belum dikonfigurasi"
-    );
-  }
-
-  const body = {
-    model: online ? `${OPENROUTER_MODEL}:online` : OPENROUTER_MODEL,
-    messages,
-    stream: true,
-    temperature: 0.7,
-    max_tokens: 16000
-  };
-
-  if (online) {
-    // plugin "web" OpenRouter — nginject hasil pencarian ke konteks sebelum model
-    // menjawab. Dipakai (bukan tool-call openrouter:web_search) karena harus tetap
-    // jalan meski model gratis yang dipilih openrouter/free tidak support tool-calling.
-    body.plugins = [{ id: "web", max_results: 4 }];
-  }
-
-  return fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization:
-          `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer":
-          "https://ai-kyro.vercel.app",
-        "X-Title": "NOVA AI"
-      },
-      body: JSON.stringify(body)
-    }
-  ).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(
-        `OpenRouter: ${await getErrorText(response)}`
-      );
-    }
-
-    if (!response.body) {
-      throw new Error(
-        "OpenRouter tidak mengembalikan stream"
-      );
-    }
-
-    return response;
-  });
-}
-
-async function createGroqRequest(messages) {
-  if (!GROQ_API_KEY) {
-    throw new Error(
-      "GROQ_API_KEY belum dikonfigurasi"
-    );
-  }
-
-  const response = await fetch(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization:
-          `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages,
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 6000
-      })
-    }
+function buildWebContext(search) {
+  const lines = search.results.map((r, i) =>
+    `[${i + 1}] ${r.title}\nURL: ${r.url}\nRingkasan: ${r.snippet}${r.published ? `\nTanggal: ${r.published}` : ""}`
   );
 
-  if (!response.ok) {
-    throw new Error(
-      `Groq: ${await getErrorText(response)}`
-    );
-  }
-
-  if (!response.body) {
-    throw new Error(
-      "Groq tidak mengembalikan stream"
-    );
-  }
-
-  return response;
+  return `WEB SEARCH RESULTS\nSearch engine: SearXNG\nInstance: ${search.instance}\nGunakan hasil ini sebagai sumber fakta terkini. Jangan mengarang sumber.\n\n${lines.join("\n\n")}`;
 }
 
 async function getErrorText(response) {
   const text = await response.text();
-
   try {
     const data = JSON.parse(text);
-
-    return (
-      data?.error?.message ||
-      data?.error ||
-      data?.message ||
-      `HTTP ${response.status}`
-    );
+    return data?.error?.message || data?.error || data?.message || `HTTP ${response.status}`;
   } catch {
     return text || `HTTP ${response.status}`;
   }
 }
 
+async function createRequest(provider, model, messages, imageUrl = null) {
+  let url;
+  let headers;
+
+  if (provider === "xkiro") {
+    if (!XKIRO_API_KEY) throw new Error("XKIRO_API_KEY belum dikonfigurasi");
+    url = "https://api.xkiro.com/v1/chat/completions";
+    headers = {
+      Authorization: `Bearer ${XKIRO_API_KEY}`,
+      "Content-Type": "application/json"
+    };
+  } else if (provider === "openrouter") {
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY belum dikonfigurasi");
+    url = "https://openrouter.ai/api/v1/chat/completions";
+    headers = {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://ai-kyro.vercel.app",
+      "X-Title": "NOVA AI"
+    };
+  } else {
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY belum dikonfigurasi");
+    url = "https://api.groq.com/openai/v1/chat/completions";
+    headers = {
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    };
+  }
+
+  const requestMessages = imageUrl
+    ? messages.map((message, index) => {
+        if(index !== messages.length - 1 || message.role !== "user") return message;
+        return {
+          ...message,
+          content: [
+            { type: "text", text: message.content || "Analisis gambar ini." },
+            { type: "image_url", image_url: { url: imageUrl } }
+          ]
+        };
+      })
+    : messages;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      messages: requestMessages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: provider === "groq" ? 6000 : 16000
+    })
+  });
+
+  if (!response.ok) throw new Error(await getErrorText(response));
+  if (!response.body) throw new Error(`${provider} tidak mengembalikan stream`);
+  return response;
+}
+
 async function collectStream(response) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-
   let buffer = "";
   let result = "";
   let model = null;
 
   while (true) {
-    const { value, done } =
-      await reader.read();
-
+    const { value, done } = await reader.read();
     if (done) break;
-
-    buffer += decoder.decode(value, {
-      stream: true
-    });
-
+    buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
-
     buffer = lines.pop() || "";
 
     for (const line of lines) {
       const trimmed = line.trim();
-
-      if (!trimmed.startsWith("data:")) {
-        continue;
-      }
-
-      const payload =
-        trimmed.slice(5).trim();
-
-      if (!payload || payload === "[DONE]") {
-        continue;
-      }
-
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
       try {
         const data = JSON.parse(payload);
-
-        if (data?.model) {
-          model = data.model;
-        }
-
-        const delta =
-          data?.choices?.[0]?.delta?.content ||
-          data?.choices?.[0]?.message?.content ||
-          "";
-
-        if (delta) {
-          result += delta;
-        }
+        if (data?.model) model = data.model;
+        result += data?.choices?.[0]?.delta?.content || data?.choices?.[0]?.message?.content || "";
       } catch {}
     }
   }
 
-  return {
-    result,
-    model
-  };
+  return { result, model };
 }
 
-async function streamProvider(response, res, provider, model) {
+async function streamToClient(response, res, provider, model) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-
   let buffer = "";
-  let fullResult = "";
-  let sentAny = false;
+  let sent = false;
 
   res.writeHead(200, {
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "no-cache, no-transform",
-    "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
     "X-NOVA-Provider": provider,
     "X-NOVA-Model": model
   });
 
   while (true) {
-    const { value, done } =
-      await reader.read();
-
+    const { value, done } = await reader.read();
     if (done) break;
-
-    buffer += decoder.decode(value, {
-      stream: true
-    });
-
+    buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
-
     buffer = lines.pop() || "";
 
     for (const line of lines) {
       const trimmed = line.trim();
-
-      if (!trimmed.startsWith("data:")) {
-        continue;
-      }
-
-      const payload =
-        trimmed.slice(5).trim();
-
-      if (!payload) {
-        continue;
-      }
-
-      if (payload === "[DONE]") {
-        continue;
-      }
-
-      let data;
-
-      try {
-        data = JSON.parse(payload);
-      } catch {
-        continue;
-      }
-
-      const delta =
-        data?.choices?.[0]?.delta?.content ||
-        data?.choices?.[0]?.message?.content ||
-        "";
-
-      if (!delta) {
-        continue;
-      }
-
-      sentAny = true;
-      fullResult += delta;
-
-      res.write(delta);
-    }
-  }
-
-  if (buffer.trim().startsWith("data:")) {
-    const payload =
-      buffer.trim().slice(5).trim();
-
-    if (
-      payload &&
-      payload !== "[DONE]"
-    ) {
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
       try {
         const data = JSON.parse(payload);
-
-        const delta =
-          data?.choices?.[0]?.delta?.content ||
-          data?.choices?.[0]?.message?.content ||
-          "";
-
+        const delta = data?.choices?.[0]?.delta?.content || data?.choices?.[0]?.message?.content || "";
         if (delta) {
-          sentAny = true;
-          fullResult += delta;
+          sent = true;
           res.write(delta);
         }
       } catch {}
     }
   }
 
-  if (!sentAny) {
-    throw new Error(
-      `${provider} tidak mengirim content`
-    );
-  }
-
+  if (!sent) throw new Error(`${provider} tidak mengirim content`);
   res.end();
-
-  return {
-    result: fullResult,
-    provider,
-    model
-  };
 }
 
-async function executeProvider(
-  provider,
-  messages,
-  res,
-  online
-) {
-  let response;
-
-  if (provider === "deepseek") {
-    response =
-      await createDeepSeekRequest(messages);
-
-    return streamProvider(
-      response,
-      res,
-      "xkiro",
-      DEEPSEEK_MODEL
-    );
+async function runProvider(provider, model, messages, res, stream, imageUrl = null) {
+  const response = await createRequest(provider, model, messages, imageUrl);
+  if (stream) {
+    await streamToClient(response, res, provider, model);
+    return null;
   }
-
-  if (provider === "openrouter") {
-    response =
-      await createOpenRouterRequest(messages, online);
-
-    return streamProvider(
-      response,
-      res,
-      "openrouter",
-      online ? `${OPENROUTER_MODEL}:online` : OPENROUTER_MODEL
-    );
-  }
-
-  if (provider === "groq") {
-    response =
-      await createGroqRequest(messages);
-
-    return streamProvider(
-      response,
-      res,
-      "groq",
-      GROQ_MODEL
-    );
-  }
-
-  throw new Error(
-    `Provider tidak dikenal: ${provider}`
-  );
-}
-
-async function executeNonStreaming(
-  provider,
-  messages,
-  online
-) {
-  let response;
-
-  if (provider === "deepseek") {
-    response =
-      await createDeepSeekRequest(messages);
-  } else if (provider === "openrouter") {
-    response =
-      await createOpenRouterRequest(messages, online);
-  } else {
-    response =
-      await createGroqRequest(messages);
-  }
-
-  const data =
-    await collectStream(response);
-
-  const result = data.result;
-
-  if (!result) {
-    throw new Error(
-      `${provider} tidak mengembalikan hasil`
-    );
-  }
-
-  return {
-    result,
-    provider:
-      provider === "deepseek"
-        ? "xkiro"
-        : provider,
-    model:
-      data.model ||
-      (
-        provider === "deepseek"
-          ? DEEPSEEK_MODEL
-          : provider === "openrouter"
-            ? (online ? `${OPENROUTER_MODEL}:online` : OPENROUTER_MODEL)
-            : GROQ_MODEL
-      )
-  };
+  return collectStream(response);
 }
 
 export default async function handler(req, res) {
-  if (
-    req.method !== "GET" &&
-    req.method !== "POST"
-  ) {
-    return json(res, 405, {
-      status: false,
-      error: "Method Not Allowed",
-      allowed: ["GET", "POST"]
-    });
+  if (req.method !== "GET" && req.method !== "POST") {
+    return json(res, 405, { status: false, error: "Method Not Allowed", allowed: ["GET", "POST"] });
   }
 
   try {
-    let body = {};
+    const body = req.method === "POST" ? await parseJson(req) : {};
+    const question = getQuestion(req, body);
+    const imageUrl = String(body?.image_url || body?.imageUrl || "").trim();
+    if (!question && !imageUrl) return json(res, 400, { status: false, error: "question atau image_url wajib diisi" });
 
-    if (req.method === "POST") {
-      body = await parseJson(req);
-    }
+    const selected = MODELS[normalizeModel(body?.model || req.query?.model)];
+    let finalQuestion = question;
+    let web = null;
+    let webSearchError = null;
 
-    const rawQuestion =
-      getQuestion(req, body);
-
-    const imageUrl = getImageUrl(req, body);
-
-    if (!rawQuestion && !imageUrl) {
-      return json(res, 400, {
-        status: false,
-        error: "question atau image_url wajib diisi"
-      });
-    }
-
-    if (imageUrl && !isValidImageUrl(imageUrl)) {
-      return json(res, 400, {
-        status: false,
-        error: "image_url harus berupa URL http/https yang valid"
-      });
-    }
-
-    // prefix command (/gambar, /edit, /vision, /cari, /chat) manual override —
-    // kalau ada, ini yang menang, gak perlu nebak-nebak dari auto-detect lagi.
-    const { command, text: question } = parsePrefixCommand(rawQuestion);
-
-    if ((command === "edit" || command === "vision") && !imageUrl) {
-      return json(res, 400, {
-        status: false,
-        error: `Perintah ${command === "edit" ? "/edit" : "/vision"} butuh foto — lampirkan foto dulu.`
-      });
-    }
-
-    /* ============================================================
-       AUTO-ROUTING "MODEL" — Nova AI otomatis pindah ke "model"
-       (backend) yang sesuai niat user (atau prefix command manual):
-       - ada image_url + instruksi edit (atau /edit) -> Nova Image Edit
-       - ada image_url + lainnya (atau /vision)       -> Nova Vision
-       - tanpa image_url + minta gambar (atau /gambar) -> Nova Image Gen
-       - /cari atau butuh info up-to-date              -> Nova Chat + web search
-       - /chat                                          -> paksa chat biasa
-       - default                                        -> Nova Chat biasa
-       ============================================================ */
-
-    if (imageUrl) {
-      const wantsEdit = command === "edit" || (command !== "vision" && command !== "chat" && detectImageEditIntent(question));
-
-      if (wantsEdit) {
-        try {
-          const { buffer, mime } = await editImageWithIkyyxd(imageUrl, question);
-          return json(res, 200, {
-            status: true,
-            type: "image",
-            provider: "ikyyxd",
-            model: "nova-image-edit",
-            image: bufferToDataUrl(buffer, mime)
-          });
-        } catch (error) {
-          console.error("EDIT PHOTO FAILED:", error?.message || error);
-          return json(res, error.status || 503, {
-            status: false,
-            error: error.message || "Gagal mengedit gambar",
-            detail: error.detail
-          });
-        }
-      }
-
-      // cek dulu URL foto beneran bisa diakses & memang file gambar, sebelum
-      // dilempar ke model vision — ini nangkep kasus "gambar kosong" yang
-      // akar masalahnya ternyata di upload/URL, bukan di model AI-nya.
-      const reachability = await verifyImageUrlReachable(imageUrl);
-      if (!reachability.ok) {
-        return json(res, 502, {
-          status: false,
-          error: "Foto tidak bisa diakses layanan AI",
-          detail: reachability.reason
-        });
-      }
-
+    if (shouldSearch(question) && !imageUrl) {
       try {
-        const vision = await runVisionWithFallback(question, imageUrl);
-        return json(res, 200, {
-          status: true,
-          type: "text",
-          provider: "openrouter",
-          model: vision.model,
-          result: vision.result,
-          vision: true
-        });
+        web = await webSearch(question);
+        finalQuestion += `\n\n${buildWebContext(web)}\n\nJawab pertanyaan pengguna berdasarkan sumber di atas jika relevan. Sertakan link sumber penting.`;
       } catch (error) {
-        console.error("VISION FAILED:", error?.message || error);
-        return json(res, 503, {
-          status: false,
-          error: "Gagal menganalisis gambar",
-          detail: error?.message || "OpenRouter Vision gagal"
-        });
+        webSearchError = error?.message || "Web search gagal";
+        console.error("WEB SEARCH FAILED:", webSearchError);
       }
     }
-
-    const wantsImageGen = command === "image" || (command === null && detectImageGenIntent(question));
-
-    if (wantsImageGen) {
-      try {
-        const { buffer, mime } = await generatePollinationsImage(question);
-        return json(res, 200, {
-          status: true,
-          type: "image",
-          provider: "pollinations",
-          model: "nova-image-gen",
-          image: bufferToDataUrl(buffer, mime)
-        });
-      } catch (error) {
-        console.error("IMAGE GEN FAILED:", error?.message || error);
-        return json(res, 503, {
-          status: false,
-          error: error.message || "Gagal membuat gambar",
-          detail: error.detail
-        });
-      }
-    }
-
-    const needsSearch = command === "search" || (command === null && detectWebSearchIntent(question));
 
     const messages = [
-      {
-        role: "system",
-        content: SYSTEM_PROMPT
-      },
-      {
-        role: "user",
-        content: question
-      }
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: finalQuestion }
     ];
 
-    const stream =
-      wantsStream(req, body);
-
-    // kalau butuh info terkini, coba openrouter (web search) duluan —
-    // deepseek/groq gak bisa browsing, jadi baru dicoba sebagai fallback
-    // kalau openrouter gagal (jawaban tanpa data terbaru masih lebih baik
-    // daripada error total).
-    const providers = needsSearch
-      ? ["openrouter", "deepseek", "groq"]
-      : ["deepseek", "openrouter", "groq"];
+    const stream = wantsStream(req, body);
+    const fallback = imageUrl
+      ? [
+          { provider: "openrouter", model: "openrouter/free" },
+          { provider: "openrouter", model: "google/gemma-3-27b-it:free" },
+          { provider: "groq", model: FALLBACK_GROQ_MODEL }
+        ]
+      : selected.provider === "xkiro"
+        ? [
+            { provider: "xkiro", model: "qwen/qwen3.8-max" },
+            { provider: "openrouter", model: "openrouter/free" },
+            { provider: "groq", model: FALLBACK_GROQ_MODEL }
+          ]
+        : selected.provider === "openrouter"
+          ? [
+              { provider: "openrouter", model: selected.model },
+              { provider: "groq", model: FALLBACK_GROQ_MODEL }
+            ]
+          : [
+              { provider: "openrouter", model: "openrouter/free" },
+              { provider: "groq", model: FALLBACK_GROQ_MODEL }
+            ];
 
     const errors = {};
 
-    if (!stream) {
-      for (const provider of providers) {
-        try {
-          const online = needsSearch && provider === "openrouter";
-
-          const result =
-            await executeNonStreaming(
-              provider,
-              messages,
-              online
-            );
-
-          return json(res, 200, {
-            status: true,
-            type: "text",
-            provider: result.provider,
-            model: result.model,
-            result: result.result,
-            web_search: online,
-            fallback:
-              provider !== providers[0],
-            fallback_from:
-              provider !== providers[0] ? providers[0] : undefined
-          });
-        } catch (error) {
-          errors[provider] =
-            error?.message ||
-            `${provider} gagal`;
-
-          console.error(
-            `${provider.toUpperCase()} FAILED:`,
-            errors[provider]
-          );
-        }
-      }
-
-      return json(res, 503, {
-        status: false,
-        error: "Semua AI provider gagal",
-        providers: errors
-      });
-    }
-
-    for (const provider of providers) {
+    for (const item of fallback) {
       try {
-        const online = needsSearch && provider === "openrouter";
+        const data = await runProvider(item.provider, item.model, messages, res, stream, imageUrl);
 
-        await executeProvider(
-          provider,
-          messages,
-          res,
-          online
-        );
+        if (stream) return;
 
-        return;
+        if (!data?.result) throw new Error("Provider tidak mengembalikan hasil");
+
+        return json(res, 200, {
+          status: true,
+          nova_model: selected.name,
+          provider: item.provider,
+          model: data.model || item.model,
+          result: data.result,
+          searched_web: Boolean(web),
+          search_source: web?.instance || null,
+          search_error: webSearchError || null,
+          fallback: item.provider !== selected.provider
+        });
       } catch (error) {
-        errors[provider] =
-          error?.message ||
-          `${provider} gagal`;
-
-        console.error(
-          `${provider.toUpperCase()} STREAM FAILED:`,
-          errors[provider]
-        );
-
-        if (
-          res.headersSent ||
-          res.writableEnded
-        ) {
-          return;
-        }
+        errors[item.provider] = error?.message || `${item.provider} gagal`;
+        console.error(`${item.provider.toUpperCase()} FAILED:`, errors[item.provider]);
+        if (res.headersSent || res.writableEnded) return;
       }
     }
 
@@ -972,26 +395,14 @@ export default async function handler(req, res) {
       return json(res, 503, {
         status: false,
         error: "Semua AI provider gagal",
-        providers: errors
+        nova_model: selected.name,
+        providers: errors,
+        web_search: webSearchError || null
       });
     }
   } catch (error) {
-    console.error(
-      "NOVA AI ERROR:",
-      error
-    );
-
-    if (!res.headersSent) {
-      return json(res, 500, {
-        status: false,
-        error:
-          error?.message ||
-          "Internal Server Error"
-      });
-    }
-
-    if (!res.writableEnded) {
-      res.end();
-    }
+    console.error("NOVA AI ERROR:", error);
+    if (!res.headersSent) return json(res, 500, { status: false, error: error?.message || "Internal Server Error" });
+    if (!res.writableEnded) res.end();
   }
 }
