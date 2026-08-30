@@ -21,6 +21,7 @@ export default (req, res) => {
       upload: '/api/upload-image',
       edit: '/api/edit-photo',
       generate: '/api/generate-image',
+      iqc: '/api/iqc',
       health: '/api/health',
       docs: '/api/docs'
     },
