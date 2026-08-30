@@ -197,6 +197,44 @@ const API_DOCS = [
       const dataUrl = await blobToDataURL(blob);
       return { kind: 'image', ok: true, dataUrl };
     }
+  },
+  {
+    id: 'iqc',
+    title: 'IQC (iPhone Quote Chat)',
+    method: 'GET',
+    endpoint: '/api/iqc',
+    desc: 'Buat gambar screenshot chat bergaya iPhone (bubble pesan gelap ala iMessage/WhatsApp) dari teks yang kamu tulis. Jam dan baterai di status bar bisa diatur sendiri. Respon selalu berupa file gambar PNG langsung.',
+    params: [
+      { name: 'text', type: 'string', required: true, desc: 'Isi pesan/quote yang ditampilkan di dalam bubble chat' },
+      { name: 'battery', type: 'number', required: false, desc: 'Persentase baterai di status bar (1-100). Default: 100' },
+      { name: 'time', type: 'string', required: false, desc: 'Jam di status bar & timestamp bubble, contoh: 23.59. Default: jam saat ini (WIB)' },
+      { name: 'name', type: 'string', required: false, desc: 'Nama kontak yang ditampilkan di header (opsional)' }
+    ],
+    fields: [
+      { key: 'text', label: 'Pesan (Text)', type: 'textarea', placeholder: 'Tulis quote/pesan...', value: 'Kyro Ganteng' },
+      { key: 'battery', label: 'Baterai (1-100)', type: 'input', placeholder: '100', value: '85' },
+      { key: 'time', label: 'Jam (contoh: 23.59)', type: 'input', placeholder: 'kosongkan = jam sekarang', value: '' },
+      { key: 'name', label: 'Nama Kontak (opsional)', type: 'input', placeholder: 'kosongkan = tanpa nama', value: '' }
+    ],
+    buildUrl: (values) => {
+      const params = new URLSearchParams();
+      params.set('text', values.text || '');
+      if(values.battery) params.set('battery', values.battery);
+      if(values.time) params.set('time', values.time);
+      if(values.name) params.set('name', values.name);
+      return `${location.origin}/api/iqc?${params.toString()}`;
+    },
+    run: async (url) => {
+      const res = await fetch(url);
+      if(!res.ok){
+        let errData = { error: `HTTP ${res.status}` };
+        try{ errData = await res.json(); } catch{}
+        return { kind: 'json', ok: false, data: errData };
+      }
+      const blob = await res.blob();
+      const dataUrl = await blobToDataURL(blob);
+      return { kind: 'image', ok: true, dataUrl };
+    }
   }
 ];
 
@@ -255,6 +293,7 @@ function renderDocsPage(){
           <div class="doc-url-box" id="docUrlBox">
             <div class="doc-response-label">Request URL</div>
             <pre id="docUrlText"></pre>
+            <button class="copy-btn" id="docCopyUrlBtn" type="button" style="margin-top:8px;">Copy URL</button>
           </div>
           <div class="doc-response" id="docResponse"></div>
         </div>
@@ -284,6 +323,12 @@ function renderDocsPage(){
   const urlBox = document.getElementById('docUrlBox');
   const urlText = document.getElementById('docUrlText');
   const respBox = document.getElementById('docResponse');
+  const copyUrlBtn = document.getElementById('docCopyUrlBtn');
+  copyUrlBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(urlText.textContent);
+    copyUrlBtn.textContent = 'Copied!';
+    setTimeout(() => { copyUrlBtn.textContent = 'Copy URL'; }, 1500);
+  });
 
   tryBtn.addEventListener('click', async () => {
     const values = currentValues();
