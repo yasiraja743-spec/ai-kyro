@@ -4,6 +4,14 @@ Aplikasi web AI dengan chat lokal, generate image, dan photo editing — **100% 
 
 ## ✨ Fitur
 
+## 🐦‍🔥 ONYX Phoenix Bot & Vision
+
+- **Vision** — ONYX AI v2.0 sekarang menggunakan `mistralai/mistral-large-2512` melalui XKIRO, sehingga dapat menerima input teks + gambar.
+- **Phoenix mascot** — Robot 3D memakai kepala bergaya Phoenix, aksen api/emas, ekspresi dan animasi halus.
+- **Free positioning** — Mascot dapat di-drag ke posisi mana pun di layar; posisi disimpan di `localStorage`.
+- **8-direction drag animation** — Gerakan kiri, kanan, atas, bawah, serta empat diagonal (`up-left`, `up-right`, `down-left`, `down-right`) memengaruhi pose, kemiringan, sayap, dan efek gerak.
+
+
 - **Chat AI Lokal** — Powered by Ollama (mistral, llama2, neural-chat)
 - **Photo Editing** — Enhance, blur, sharpen, grayscale dengan OpenCV
 - **Riwayat Chat** — Sync ke Firebase Firestore (cross-device)

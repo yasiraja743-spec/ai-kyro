@@ -459,74 +459,65 @@
     #authWrapper .card{ border-radius:0 24px 24px 0; box-shadow:0 20px 50px rgba(0,0,0,0.45); }
     #authWrapper .card::before{ display:none; }
   }
-  /* ---------- Bot Mascot (real 3D via WebGL) ---------- */
+  /* ---------- ONYX Phoenix Bot ---------- */
   #mascotWidget{
     position:fixed; right:16px; bottom:96px; z-index:60;
-    --mascot-color: #9F8CFF;
+    --mascot-color:#FF9A3D; --phoenix-gold:#FFD166; --phoenix-red:#FF5A36;
     display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+    touch-action:none; user-select:none; -webkit-user-select:none;
   }
+  #mascotWidget.dragging{ cursor:grabbing; }
+  #mascotWidget.dragging #mascotBtn{ cursor:grabbing; filter:brightness(1.12); }
   #mascotScene{
-    width:74px; height:74px;
-    display:flex; align-items:flex-end; justify-content:center;
+    width:92px; height:92px; display:flex; align-items:flex-end; justify-content:center;
     position:relative;
   }
   #mascotShadow{
     position:absolute; bottom:2px; left:50%; transform:translateX(-50%);
-    width:34px; height:8px; border-radius:50%; background: rgba(0,0,0,0.55); filter: blur(2px);
-    animation: mascotShadowPulse 3.2s ease-in-out infinite;
+    width:48px; height:10px; border-radius:50%; background:rgba(0,0,0,.58);
+    filter:blur(3px); animation:mascotShadowPulse 3.2s ease-in-out infinite;
     pointer-events:none;
   }
   #mascotBtn{
-    background:none; border:none; cursor:pointer; padding:0; position:relative;
-    width:74px; height:74px; display:flex; align-items:center; justify-content:center;
+    background:none; border:none; cursor:grab; padding:0; position:relative;
+    width:92px; height:92px; display:flex; align-items:center; justify-content:center;
+    touch-action:none;
   }
-  #mascotBtn:hover{ filter: brightness(1.08); }
-  #mascotCanvas{ width:74px; height:74px; display:block; }
+  #mascotBtn:hover{filter:brightness(1.08);}
+  #mascotCanvas{width:92px;height:92px;display:block;}
   @keyframes mascotShadowPulse{
-    0%,100%{ transform: translateX(-50%) scaleX(1); opacity:0.5; }
-    50%{ transform: translateX(-50%) scaleX(0.7); opacity:0.28; }
+    0%,100%{transform:translateX(-50%) scaleX(1);opacity:.5}
+    50%{transform:translateX(-50%) scaleX(.68);opacity:.28}
   }
-  #mascotWidget.reading #mascotShadow{ animation: mascotShadowPulse 0.8s ease-in-out infinite; }
+  #mascotWidget.reading #mascotShadow{animation:mascotShadowPulse .8s ease-in-out infinite}
   #mascotStatusDot{
-    position:absolute; top:2px; right:6px; width:11px; height:11px; border-radius:50%;
-    background: var(--mascot-color); border:2px solid var(--bg); display:none; z-index:2;
+    position:absolute;top:2px;right:5px;width:11px;height:11px;border-radius:50%;
+    background:var(--mascot-color);border:2px solid var(--bg);display:none;z-index:2;
   }
-  #mascotWidget.reading #mascotStatusDot{ display:block; animation: mascotPing 1s ease-in-out infinite; }
-  @keyframes mascotPing{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
-
+  #mascotWidget.reading #mascotStatusDot{display:block;animation:mascotPing 1s ease-in-out infinite}
+  @keyframes mascotPing{0%,100%{opacity:1}50%{opacity:.35}}
   #mascotPanel{
-    display:none; width:224px; background: var(--surface); border:1px solid var(--border); border-radius:18px;
-    padding:14px; box-shadow: 0 18px 44px rgba(0,0,0,0.5);
+    display:none;width:236px;background:var(--surface);border:1px solid var(--border);border-radius:18px;
+    padding:14px;box-shadow:0 18px 44px rgba(0,0,0,.5);
   }
-  #mascotPanel.show{ display:block; animation: msgIn .18s ease; }
-  .mascot-panel-title{ font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
-  .mascot-panel-title .dot{ width:7px; height:7px; border-radius:50%; background: var(--mascot-color); }
-  .mascot-row{ margin-bottom:12px; }
-  .mascot-row:last-child{ margin-bottom:0; }
-  .mascot-row-label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; font-weight:600; margin-bottom:7px; }
-  .mascot-emote-options{ display:flex; gap:5px; flex-wrap:wrap; }
-  .mascot-emote-btn{
-    flex:1; min-width:32px; background: var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:7px 0;
-    font-size:15px; cursor:pointer; transition:.15s;
-  }
-  .mascot-emote-btn.active{ border-color: var(--mascot-color); background: rgba(255,255,255,0.04); }
-  .mascot-color-options{ display:flex; gap:8px; }
-  .mascot-color-dot{
-    width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:.15s;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .mascot-color-dot.active{ border-color: var(--text); }
-  #mascotMuteRow{ display:flex; align-items:center; justify-content:space-between; }
-  #mascotMuteBtn{
-    background: var(--surface-2); border:1px solid var(--border); color:var(--text); width:36px; height:28px;
-    border-radius:9px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-  }
-  #mascotMuteBtn svg{ width:16px; height:16px; stroke: var(--text); }
-  #mascotMuteBtn.active{ border-color: var(--mascot-color); }
-  #mascotMuteBtn.active svg{ stroke: var(--mascot-color); }
-  @media(min-width:900px){
-    #mascotWidget{ bottom:110px; right:28px; }
-  }
+  #mascotPanel.show{display:block;animation:msgIn .18s ease}
+  .mascot-panel-title{font-family:'Space Grotesk';font-weight:700;font-size:13.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .mascot-panel-title .dot{width:7px;height:7px;border-radius:50%;background:var(--mascot-color)}
+  .mascot-row{margin-bottom:12px}.mascot-row:last-child{margin-bottom:0}
+  .mascot-row-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin-bottom:7px}
+  .mascot-emote-options{display:flex;gap:5px;flex-wrap:wrap}
+  .mascot-emote-btn{flex:1;min-width:32px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:7px 0;font-size:15px;cursor:pointer;transition:.15s}
+  .mascot-emote-btn.active{border-color:var(--mascot-color);background:rgba(255,255,255,.04)}
+  .mascot-color-options{display:flex;gap:8px}
+  .mascot-color-dot{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s;display:flex;align-items:center;justify-content:center}
+  .mascot-color-dot.active{border-color:var(--text)}
+  #mascotMuteRow{display:flex;align-items:center;justify-content:space-between}
+  #mascotMuteBtn{background:var(--surface-2);border:1px solid var(--border);color:var(--text);width:36px;height:28px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  #mascotMuteBtn svg{width:16px;height:16px;stroke:var(--text)}
+  #mascotMuteBtn.active{border-color:var(--mascot-color)}
+  #mascotMuteBtn.active svg{stroke:var(--mascot-color)}
+  .mascot-drag-hint{font-size:10px;color:var(--muted);line-height:1.3;margin-top:3px}
+  @media(min-width:900px){#mascotWidget{bottom:110px;right:28px}}
 </style>
 </head>
 <body>
@@ -643,7 +634,7 @@
           </div>
           <input type="file" id="hiddenFileInput" accept="image/*" style="display:none;">
           <div id="modelMenu">
-            <button data-model="v2" class="active">ONYX AI v2.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">Qwen3.8 Max</span></button>
+            <button data-model="v2" class="active">ONYX AI v2.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">Mistral Large 3 • Vision</span></button>
             <button data-model="v13">ONYX AI v1.3 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">OpenRouter Free</span></button>
             <button data-model="v10">ONYX AI v1.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">GPT-OSS</span></button>
           </div>
@@ -663,7 +654,7 @@
 
 <div id="mascotWidget">
   <div id="mascotPanel">
-    <div class="mascot-panel-title"><span class="dot"></span> ONYX Bot</div>
+    <div class="mascot-panel-title"><span class="dot"></span> ONYX Bot</div><div class="mascot-drag-hint">Seret robot ke posisi mana saja. Arah geser memicu animasi 8 arah.</div>
     <div class="mascot-row">
       <div class="mascot-row-label">Ekspresi</div>
       <div class="mascot-emote-options">
@@ -692,7 +683,7 @@
 
   <div id="mascotShadow"></div>
   <div id="mascotScene">
-    <button id="mascotBtn" title="Pengaturan ONYX Bot">
+    <button id="mascotBtn" title="Seret untuk memindahkan ONYX Phoenix • Klik untuk pengaturan">
       <canvas id="mascotCanvas"></canvas>
       <span id="mascotStatusDot"></span>
     </button>
@@ -2076,208 +2067,332 @@ if(mascotWidget && mascotBtn && mascotPanel){
   }
 }
 
-/* ---- Real 3D robot render (Three.js): badan + kepala + mata + antena ---- */
+/* ---- Real 3D ONYX Phoenix render + smooth drag/8-direction motion ---- */
 (function initMascot3D(){
   if(!mascotCanvas || !window.THREE) return;
 
-  const SIZE = 74;
+  const SIZE = 92;
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  const renderer = new THREE.WebGLRenderer({ canvas: mascotCanvas, alpha:true, antialias:true });
+  const renderer = new THREE.WebGLRenderer({canvas:mascotCanvas,alpha:true,antialias:true});
   renderer.setPixelRatio(DPR);
-  renderer.setSize(SIZE, SIZE, false);
+  renderer.setSize(SIZE,SIZE,false);
+  renderer.outputEncoding = THREE.sRGBEncoding;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-  camera.position.set(0, 0.35, 5.4);
-  camera.lookAt(0, 0.1, 0);
+  const camera = new THREE.PerspectiveCamera(32,1,.1,100);
+  camera.position.set(0,.35,5.7);
+  camera.lookAt(0,.08,0);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-  const key = new THREE.DirectionalLight(0xffffff, 0.9);
-  key.position.set(2, 3, 4);
-  scene.add(key);
-  const rim = new THREE.DirectionalLight(0x8892ff, 0.5);
-  rim.position.set(-3, -1, -2);
-  scene.add(rim);
+  scene.add(new THREE.AmbientLight(0xffffff,.62));
+  const key = new THREE.DirectionalLight(0xffd6a0,1.15);
+  key.position.set(2,3,4); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xff5a36,.65);
+  rim.position.set(-3,1,-2); scene.add(rim);
 
   const robot = new THREE.Group();
   scene.add(robot);
 
-  // --- badan ---
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1b1d2a, metalness: 0.3, roughness: 0.45 });
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.74, 1.05, 28), bodyMat);
-  body.position.y = -0.72;
-  robot.add(body);
-  const beltMat = new THREE.MeshStandardMaterial({ color: 0x2a2c3d, metalness: 0.4, roughness: 0.4 });
-  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.035, 10, 32), beltMat);
-  belt.rotation.x = Math.PI/2;
-  belt.position.y = -0.42;
-  robot.add(belt);
+  // Phoenix palette: obsidian metal + ember red + gold.
+  const bodyMat = new THREE.MeshStandardMaterial({color:0x171a24,metalness:.5,roughness:.34});
+  const goldMat = new THREE.MeshStandardMaterial({color:0xffb13b,metalness:.72,roughness:.25,emissive:0x3b1700,emissiveIntensity:.22});
+  const emberMat = new THREE.MeshStandardMaterial({color:0xff4b2b,metalness:.45,roughness:.3,emissive:0x4a0d02,emissiveIntensity:.5});
+  const darkMat = new THREE.MeshStandardMaterial({color:0x0c0e14,metalness:.45,roughness:.4});
 
-  // --- lengan kecil ---
-  const armMat = new THREE.MeshStandardMaterial({ color: 0x1b1d2a, metalness: 0.3, roughness: 0.5 });
-  const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.46, 12);
-  const armL = new THREE.Mesh(armGeo, armMat);
-  armL.position.set(-0.78, -0.55, 0);
-  armL.rotation.z = 0.35;
-  robot.add(armL);
-  const armR = armL.clone();
-  armR.position.x = 0.78;
-  armR.rotation.z = -0.35;
-  robot.add(armR);
+  // Body
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.65,.76,1.02,28),bodyMat);
+  body.position.y=-.72; robot.add(body);
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(.67,.045,10,32),goldMat);
+  belt.rotation.x=Math.PI/2; belt.position.y=-.43; robot.add(belt);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(.16,20,20),emberMat);
+  core.scale.set(1,.72,.5); core.position.set(0,-.62,.65); robot.add(core);
 
-  // --- kepala (group biar bisa gerak sendiri buat ekspresi) ---
+  // Small wings
+  const wingGeo = new THREE.SphereGeometry(.34,20,16);
+  const wingL = new THREE.Mesh(wingGeo,emberMat);
+  wingL.scale.set(.72,1.25,.2); wingL.position.set(-.69,-.52,-.02); wingL.rotation.z=-.38; robot.add(wingL);
+  const wingR = wingL.clone();
+  wingR.position.x=.69; wingR.rotation.z=.38; robot.add(wingR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(.1,.1,.45,12);
+  const armL = new THREE.Mesh(armGeo,bodyMat);
+  armL.position.set(-.79,-.55,.04); armL.rotation.z=.35; robot.add(armL);
+  const armR = armL.clone(); armR.position.x=.79; armR.rotation.z=-.35; robot.add(armR);
+
+  // Phoenix head: neck, face, beak and crest.
   const headGroup = new THREE.Group();
-  headGroup.position.y = 0.5;
-  robot.add(headGroup);
+  headGroup.position.y=.48; robot.add(headGroup);
 
-  const headMat = new THREE.MeshStandardMaterial({ color: 0x232538, metalness: 0.35, roughness: 0.35 });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.62, 32, 32), headMat);
-  head.scale.set(1, 0.94, 0.96);
-  headGroup.add(head);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.27,.34,.42,20),darkMat);
+  neck.position.y=-.38; headGroup.add(neck);
 
-  const eyeColor = new THREE.Color(mascotSettings.color || '#9F8CFF');
-  const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor, emissive: eyeColor, emissiveIntensity: 1.15, roughness: 0.3 });
-  const eyeGeo = new THREE.SphereGeometry(0.095, 20, 20);
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.set(-0.23, 0.02, 0.56);
-  headGroup.add(eyeL);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeR.position.set(0.23, 0.02, 0.56);
-  headGroup.add(eyeR);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.57,32,24),bodyMat);
+  head.scale.set(.98,1.08,.92); headGroup.add(head);
 
-  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x8b8a9e, roughness: 0.55 });
-  const mouthStraight = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.03, 0.03), mouthMat);
-  mouthStraight.position.set(0, -0.2, 0.58);
-  headGroup.add(mouthStraight);
-  const mouthSmile = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.028, 8, 20, Math.PI * 0.85), mouthMat.clone());
-  mouthSmile.rotation.z = Math.PI + (Math.PI - Math.PI * 0.85) / 2;
-  mouthSmile.position.set(0, -0.14, 0.56);
-  mouthSmile.visible = false;
-  headGroup.add(mouthSmile);
+  // Face plates
+  const cheekL = new THREE.Mesh(new THREE.SphereGeometry(.25,20,16),emberMat);
+  cheekL.scale.set(1,.72,.32); cheekL.position.set(-.29,-.08,.43); headGroup.add(cheekL);
+  const cheekR = cheekL.clone(); cheekR.position.x=.29; headGroup.add(cheekR);
 
-  const antennaMat = new THREE.MeshStandardMaterial({ color: 0x8b8a9e, roughness: 0.5 });
-  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8), antennaMat);
-  antenna.position.set(0, 0.74, 0);
-  headGroup.add(antenna);
-  const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 14), eyeMat.clone());
-  antennaTip.position.set(0, 0.92, 0);
-  headGroup.add(antennaTip);
+  // Eyes
+  const eyeColor = new THREE.Color(mascotSettings.color || '#FF9A3D');
+  const eyeMat = new THREE.MeshStandardMaterial({color:eyeColor,emissive:eyeColor,emissiveIntensity:1.5,roughness:.22});
+  const eyeGeo = new THREE.SphereGeometry(.09,20,20);
+  const eyeL = new THREE.Mesh(eyeGeo,eyeMat); eyeL.position.set(-.21,.06,.54); headGroup.add(eyeL);
+  const eyeR = new THREE.Mesh(eyeGeo,eyeMat); eyeR.position.set(.21,.06,.54); headGroup.add(eyeR);
 
-  // state
-  let motion = 'idle';
-  let emote = mascotSettings.emote || 'default';
-  let t = 0;
-  let blinkTimer = 0;
-  let happyBurst = 0;
+  // Phoenix beak: upper and lower cones rotated forward.
+  const beakMat = new THREE.MeshStandardMaterial({color:0xffc857,metalness:.58,roughness:.24});
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(.16,.42,4),beakMat);
+  beak.rotation.x=Math.PI/2; beak.rotation.z=Math.PI/4;
+  beak.scale.set(1,.72,1); beak.position.set(0,-.08,.72); headGroup.add(beak);
+
+  const beakLower = new THREE.Mesh(new THREE.ConeGeometry(.11,.24,4),darkMat);
+  beakLower.rotation.x=Math.PI/2; beakLower.rotation.z=-Math.PI/4;
+  beakLower.position.set(0,-.17,.67); headGroup.add(beakLower);
+
+  // Crown / phoenix flame feathers.
+  const crestMat = new THREE.MeshStandardMaterial({color:0xff6b35,metalness:.5,roughness:.28,emissive:0x4a1000,emissiveIntensity:.35});
+  const crestGold = new THREE.MeshStandardMaterial({color:0xffd166,metalness:.6,roughness:.25,emissive:0x3d2500,emissiveIntensity:.25});
+  const featherGeo = new THREE.ConeGeometry(.12,.48,6);
+  const crest=[];
+  [-.22,0,.22].forEach((x,i)=>{
+    const f=new THREE.Mesh(featherGeo,i===1?crestGold:crestMat);
+    f.position.set(x,.64-.05*Math.abs(x),.02);
+    f.rotation.z=(x===0?0:-x*1.7);
+    f.rotation.x=-.18;
+    f.scale.set(1,1+(i===1?.25:0),1);
+    headGroup.add(f); crest.push(f);
+  });
+
+  // Side flame feathers
+  const sideFeatherGeo=new THREE.ConeGeometry(.075,.34,6);
+  [-1,1].forEach(side=>{
+    const f=new THREE.Mesh(sideFeatherGeo,crestMat);
+    f.position.set(side*.49,.42,.02);
+    f.rotation.z=-side*.75; f.rotation.x=-.25;
+    headGroup.add(f);
+  });
+
+  // Small gold facial brow plates
+  const browGeo=new THREE.BoxGeometry(.25,.055,.08);
+  const browL=new THREE.Mesh(browGeo,goldMat); browL.position.set(-.2,.2,.54); browL.rotation.z=-.18; headGroup.add(browL);
+  const browR=browL.clone(); browR.position.x=.2; browR.rotation.z=.18; headGroup.add(browR);
+
+  // State
+  let motion='idle', emote=mascotSettings.emote||'default', t=0, blinkTimer=0;
+  let burst=0, dragVelocity={x:0,y:0}, dragDir='idle';
 
   function setColor(hex){
     eyeMat.color.set(hex); eyeMat.emissive.set(hex);
-    antennaTip.material.color.set(hex); antennaTip.material.emissive.set(hex);
+    mascotWidget.style.setProperty('--mascot-color',hex);
   }
   function setEmote(name){
-    emote = name;
-    mouthSmile.visible = (name === 'happy' || name === 'love');
-    mouthStraight.visible = !mouthSmile.visible;
-    if(name === 'love' && mouthSmile.material) mouthSmile.material.color.set(0xff7a6e);
-    else if(mouthSmile.material) mouthSmile.material.color.set(0x8b8a9e);
+    emote=name;
+    if(name==='love') eyeMat.color.set(0xff78b7), eyeMat.emissive.set(0xff2d7d);
+    else eyeMat.color.set(mascotSettings.color||'#FF9A3D'), eyeMat.emissive.copy(eyeMat.color);
   }
-  function setMotion(name){ motion = name; }
-  window.mascotSetColor = setColor;
-  window.mascotSetEmote = setEmote;
-  window.mascotSetMotion = setMotion;
+  function setMotion(name){ motion=name; if(name==='happy') burst=.9; }
+  window.mascotSetColor=setColor;
+  window.mascotSetEmote=setEmote;
+  window.mascotSetMotion=setMotion;
   setEmote(emote);
 
+  function directionFromDelta(dx,dy){
+    const ax=Math.abs(dx), ay=Math.abs(dy);
+    if(Math.max(ax,ay)<3) return 'idle';
+    const h=ax>ay*.55, v=ay>ax*.55;
+    const horiz=dx>0?'right':'left', vert=dy>0?'down':'up';
+    if(h && v) return vert+'-'+horiz;
+    if(h) return horiz;
+    return vert;
+  }
+
+  function applyDragMotion(dir,speed){
+    dragDir=dir;
+    motion=dir==='idle'?'idle':'drag-'+dir;
+    const tilt={left:-1,right:1,up:0,down:0,'up-left':-.65,'up-right':.65,'down-left':-.65,'down-right':.65}[dir]||0;
+    robot.rotation.z=THREE.MathUtils.lerp(robot.rotation.z,tilt*.16,Math.min(1,speed*.08));
+    robot.rotation.y=THREE.MathUtils.lerp(robot.rotation.y,
+      ({left:-.3,right:.3,'up-left':-.18,'up-right':.18,'down-left':-.18,'down-right':.18}[dir]||0),
+      Math.min(1,speed*.06));
+  }
+
   function animate(dt){
-    t += dt;
-    happyBurst = Math.max(0, happyBurst - dt);
+    t+=dt;
+    burst=Math.max(0,burst-dt);
+    const dragging=mascotWidget.classList.contains('dragging');
+    const bobSpeed=dragging?8:motion==='reading'?5.5:2.1;
+    const bobAmount=dragging?.025:motion==='reading'?.09:.06;
+    robot.position.y=THREE.MathUtils.lerp(robot.position.y,Math.sin(t*bobSpeed)*bobAmount,.14);
 
-    // idle / reading float
-    const bobSpeed = motion === 'reading' ? 5.5 : 2.1;
-    const bobAmount = motion === 'reading' ? 0.09 : 0.06;
-    robot.position.y = Math.sin(t * bobSpeed) * bobAmount;
+    if(!dragging){
+      robot.rotation.z=THREE.MathUtils.lerp(robot.rotation.z,0,.08);
+      robot.rotation.y=THREE.MathUtils.lerp(robot.rotation.y,Math.sin(t*(motion==='reading'?2.1:.7))*(motion==='reading'?.32:.22),.08);
+    }
 
-    // rotasi badan pelan-pelan
-    const turnSpeed = motion === 'reading' ? 2.1 : 0.7;
-    const turnAmount = motion === 'reading' ? 0.32 : 0.22;
-    robot.rotation.y = Math.sin(t * turnSpeed) * turnAmount;
-
-    // ekspresi via pose kepala
-    if(emote === 'sleepy'){
-      headGroup.rotation.x = 0.22 + Math.sin(t * 1.2) * 0.03;
-      eyeL.scale.y = eyeR.scale.y = 0.25;
-    } else if(emote === 'cool'){
-      headGroup.rotation.x = -0.05;
-      eyeL.scale.y = eyeR.scale.y = 0.45;
-    } else if(emote === 'love'){
-      headGroup.rotation.x = 0;
-      const pulse = 1 + Math.sin(t * 6) * 0.12;
-      eyeL.scale.setScalar(pulse); eyeR.scale.setScalar(pulse);
+    // Expression
+    if(emote==='sleepy'){
+      headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,.22+Math.sin(t*1.2)*.03,.12);
+      eyeL.scale.y=eyeR.scale.y=.25;
+    } else if(emote==='cool'){
+      headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,-.05,.12);
+      eyeL.scale.y=eyeR.scale.y=.45;
+    } else if(emote==='love'){
+      headGroup.rotation.x=0;
+      const pulse=1+Math.sin(t*6)*.12; eyeL.scale.setScalar(pulse); eyeR.scale.setScalar(pulse);
     } else {
-      headGroup.rotation.x = 0;
-      // blink berkala (skip kalau lagi emote yang udah override mata)
-      blinkTimer += dt;
-      if(blinkTimer > 3.4){
-        const phase = blinkTimer - 3.4;
-        const blink = phase < 0.12 ? 1 - phase / 0.12 : (phase < 0.22 ? (phase - 0.12) / 0.1 : 1);
-        eyeL.scale.y = eyeR.scale.y = Math.max(0.12, blink);
-        if(blinkTimer > 3.7) blinkTimer = 0;
-      } else {
-        eyeL.scale.y = eyeR.scale.y = 1;
+      headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,0,.12);
+      blinkTimer+=dt;
+      if(blinkTimer>3.4){
+        const ph=blinkTimer-3.4;
+        const b=ph<.12?1-ph/.12:(ph<.22?(ph-.12)/.1:1);
+        eyeL.scale.y=eyeR.scale.y=Math.max(.12,b);
+        if(blinkTimer>3.7) blinkTimer=0;
+      } else eyeL.scale.y=eyeR.scale.y=1;
+    }
+
+    // Reading scan / Phoenix alert look.
+    if(motion==='reading'){
+      const scan=Math.sin(t*6)*.05;
+      eyeL.position.x=-.21+scan; eyeR.position.x=.21+scan;
+      headGroup.rotation.y=THREE.MathUtils.lerp(headGroup.rotation.y,Math.sin(t*3)*.1,.1);
+    } else if(!dragging){
+      eyeL.position.x=-.21; eyeR.position.x=.21;
+      headGroup.rotation.y=THREE.MathUtils.lerp(headGroup.rotation.y,0,.1);
+    }
+
+    // Drag animation: wing flap + feather/crest bounce + directional lean.
+    const flap=dragging?Math.sin(t*18)*.42:Math.sin(t*2.1)*.035;
+    wingL.rotation.y=flap; wingR.rotation.y=-flap;
+    wingL.rotation.z=-.38-flap*.25; wingR.rotation.z=.38+flap*.25;
+    crest.forEach((f,i)=>{ f.rotation.x=-.18+Math.sin(t*10+i)*.08+(dragging?.08:0); });
+
+    // Directional thrust effect.
+    if(dragging){
+      const thrust=Math.min(1,Math.hypot(dragVelocity.x,dragVelocity.y)/25);
+      robot.position.x=THREE.MathUtils.lerp(robot.position.x,dragVelocity.x*.002,.12);
+      core.scale.setScalar(1+thrust*.18+Math.sin(t*15)*.04);
+    } else {
+      robot.position.x=THREE.MathUtils.lerp(robot.position.x,0,.12);
+      core.scale.setScalar(1+Math.sin(t*4)*.04);
+    }
+
+    // Happy burst.
+    if(motion==='happy'){ motion='happy-playing'; burst=.9; }
+    if(motion==='happy-playing'){
+      const progress=1-burst/.9;
+      robot.position.y+=Math.abs(Math.sin(progress*Math.PI))*.18;
+      robot.rotation.y+=dt*8*(1-progress);
+      robot.scale.setScalar(1+Math.sin(progress*Math.PI)*.12);
+      if(burst<=0){motion='idle';robot.scale.setScalar(1);}
+    } else if(!dragging) robot.scale.setScalar(1);
+
+    // Direction label is reflected in subtle head pose.
+    if(dragging && dragDir!=='idle'){
+      const lean={left:-.16,right:.16,'up-left':-.1,'up-right':.1,'down-left':-.1,'down-right':.1}[dragDir]||0;
+      headGroup.rotation.z=THREE.MathUtils.lerp(headGroup.rotation.z,lean,.15);
+    } else headGroup.rotation.z=THREE.MathUtils.lerp(headGroup.rotation.z,0,.1);
+
+    armL.rotation.z=.35+Math.sin(t*bobSpeed)*.08;
+    armR.rotation.z=-.35-Math.sin(t*bobSpeed)*.08;
+    renderer.render(scene,camera);
+  }
+
+  // Pointer drag: the widget follows the finger/mouse and stays inside the viewport.
+  let drag={active:false,moved:false,startX:0,startY:0,lastX:0,lastY:0,offsetX:0,offsetY:0};
+  let suppressClick=false;
+  const POS_KEY='onyx_phoenix_position';
+
+  function restorePosition(){
+    try{
+      const pos=JSON.parse(localStorage.getItem(POS_KEY)||'null');
+      if(pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)){
+        const maxX=Math.max(4,innerWidth-mascotWidget.offsetWidth-4);
+        const maxY=Math.max(4,innerHeight-mascotWidget.offsetHeight-4);
+        mascotWidget.style.left=Math.min(maxX,Math.max(4,pos.x))+'px';
+        mascotWidget.style.top=Math.min(maxY,Math.max(4,pos.y))+'px';
+        mascotWidget.style.right='auto'; mascotWidget.style.bottom='auto';
       }
-      if(emote !== 'love'){ eyeL.scale.x = eyeR.scale.x = 1; }
-    }
-
-    // reading: mata "scan" kiri-kanan
-    if(motion === 'reading'){
-      const scan = Math.sin(t * 6) * 0.05;
-      eyeL.position.x = -0.23 + scan; eyeR.position.x = 0.23 + scan;
-      headGroup.rotation.y = Math.sin(t * 3) * 0.1;
-    } else {
-      eyeL.position.x = -0.23; eyeR.position.x = 0.23;
-      headGroup.rotation.y = 0;
-    }
-
-    // happy: spin + bounce sesaat
-    if(motion === 'happy'){
-      happyBurst = 0.9;
-      motion = 'happy-playing';
-    }
-    if(motion === 'happy-playing' || happyBurst > 0){
-      const progress = 1 - Math.max(0, happyBurst) / 0.9;
-      robot.rotation.y += dt * 9 * (1 - progress);
-      robot.position.y += Math.abs(Math.sin(progress * Math.PI)) * 0.18;
-      robot.scale.setScalar(1 + Math.sin(progress * Math.PI) * 0.12);
-      if(happyBurst <= 0){ motion = 'idle'; robot.scale.setScalar(1); }
-    } else {
-      robot.scale.setScalar(1);
-    }
-
-    // lengan ngikutin bob
-    armL.rotation.z = 0.35 + Math.sin(t * bobSpeed) * 0.08;
-    armR.rotation.z = -0.35 - Math.sin(t * bobSpeed) * 0.08;
-
-    renderer.render(scene, camera);
+    }catch{}
+  }
+  function savePosition(){
+    const r=mascotWidget.getBoundingClientRect();
+    try{localStorage.setItem(POS_KEY,JSON.stringify({x:r.left,y:r.top}));}catch{}
+  }
+  function keepInViewport(){
+    const r=mascotWidget.getBoundingClientRect();
+    const x=Math.min(Math.max(4,r.left),Math.max(4,innerWidth-r.width-4));
+    const y=Math.min(Math.max(4,r.top),Math.max(4,innerHeight-r.height-4));
+    mascotWidget.style.left=x+'px'; mascotWidget.style.top=y+'px';
+    mascotWidget.style.right='auto'; mascotWidget.style.bottom='auto';
+  }
+  function beginDrag(e){
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    drag.active=true; drag.moved=false;
+    const r=mascotWidget.getBoundingClientRect();
+    drag.offsetX=e.clientX-r.left; drag.offsetY=e.clientY-r.top;
+    drag.startX=drag.lastX=e.clientX; drag.startY=drag.lastY=e.clientY;
+    mascotWidget.classList.add('dragging');
+    try{mascotBtn.setPointerCapture(e.pointerId);}catch{}
+    e.preventDefault();
+  }
+  function moveDrag(e){
+    if(!drag.active) return;
+    const dx=e.clientX-drag.startX, dy=e.clientY-drag.startY;
+    if(Math.hypot(dx,dy)>5) drag.moved=true;
+    const vx=e.clientX-drag.lastX, vy=e.clientY-drag.lastY;
+    drag.lastX=e.clientX; drag.lastY=e.clientY;
+    dragVelocity.x=THREE.MathUtils.lerp(dragVelocity.x,vx,.55);
+    dragVelocity.y=THREE.MathUtils.lerp(dragVelocity.y,vy,.55);
+    const dir=directionFromDelta(dx,dy);
+    applyDragMotion(dir,Math.hypot(vx,vy));
+    const r=mascotWidget.getBoundingClientRect();
+    const x=Math.min(Math.max(4,e.clientX-drag.offsetX),Math.max(4,innerWidth-r.width-4));
+    const y=Math.min(Math.max(4,e.clientY-drag.offsetY),Math.max(4,innerHeight-r.height-4));
+    mascotWidget.style.left=x+'px'; mascotWidget.style.top=y+'px';
+    mascotWidget.style.right='auto'; mascotWidget.style.bottom='auto';
+    e.preventDefault();
+  }
+  function endDrag(e){
+    if(!drag.active) return;
+    drag.active=false; mascotWidget.classList.remove('dragging');
+    const wasMoved=drag.moved;
+    if(wasMoved) savePosition();
+    if(wasMoved) suppressClick=true;
+    const speed=Math.hypot(dragVelocity.x,dragVelocity.y);
+    if(wasMoved && speed>1.2){
+      const lastDir=dragDir;
+      motion='drag-release';
+      // Smooth release: keep the last directional pose for a moment, then idle.
+      setTimeout(()=>{if(!mascotWidget.classList.contains('dragging')){motion='idle';dragDir=lastDir;}},260);
+    } else motion='idle';
+    dragVelocity.x*=.35; dragVelocity.y*=.35;
   }
 
-  let last = performance.now();
-  let rafId = null;
+  mascotBtn.addEventListener('pointerdown',beginDrag);
+  mascotBtn.addEventListener('pointermove',moveDrag);
+  mascotBtn.addEventListener('pointerup',endDrag);
+  mascotBtn.addEventListener('pointercancel',endDrag);
+  mascotBtn.addEventListener('click',e=>{
+    // A drag should never open the settings panel.
+    if(suppressClick){e.preventDefault();e.stopPropagation();suppressClick=false;return;}
+  },true);
+  window.addEventListener('resize',()=>{ if(mascotWidget.style.left) keepInViewport(); });
+
+  restorePosition();
+
+  let last=performance.now(), rafId=null;
   function loop(now){
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
+    const dt=Math.min(.05,(now-last)/1000); last=now;
     animate(dt);
-    rafId = requestAnimationFrame(loop);
+    rafId=requestAnimationFrame(loop);
   }
-  rafId = requestAnimationFrame(loop);
+  rafId=requestAnimationFrame(loop);
 
-  // hemat baterai: berhenti render kalau tab gak keliatan
-  document.addEventListener('visibilitychange', () => {
-    if(document.hidden){
-      if(rafId) cancelAnimationFrame(rafId);
-      rafId = null;
-    } else if(!rafId){
-      last = performance.now();
-      rafId = requestAnimationFrame(loop);
-    }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){if(rafId)cancelAnimationFrame(rafId);rafId=null;}
+    else if(!rafId){last=performance.now();rafId=requestAnimationFrame(loop);}
   });
 })();
 
