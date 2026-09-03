@@ -37,7 +37,7 @@ export default (req, res) => {
       {
         method: 'POST',
         path: '/api/generate-image',
-        description: 'Generate image dari text prompt via Cloudflare AI / xai/grok-imagine-image-2.0',
+        description: 'Generate image dari text prompt via Cloudflare AI / flux-1-schnell (Pixazo)',
         body: { prompt: 'string' },
         response: { status: 'boolean', image: 'url' }
       },

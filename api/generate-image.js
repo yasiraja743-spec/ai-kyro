@@ -1,4 +1,4 @@
-import { generateCloudflareImage } from "./_image.js";
+import { generatePixazoImage } from "./_image.js";
 
 export const maxDuration = 60;
 
@@ -30,6 +30,8 @@ export default async function handler(req, res) {
     const aspectRatio = String(getValue(req, body, "aspect_ratio") || "1:1");
     const quality = String(getValue(req, body, "quality") || "medium");
     const resolution = String(getValue(req, body, "resolution") || "1k");
+    const stepsRaw = Number(getValue(req, body, "steps") || 4);
+    const steps = Number.isFinite(stepsRaw) ? Math.min(8, Math.max(1, Math.round(stepsRaw))) : 4;
 
     if (!ALLOWED_ASPECT_RATIOS.has(aspectRatio)) {
       return res.status(400).json({ status: false, error: "aspect_ratio tidak didukung" });
@@ -41,17 +43,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ status: false, error: "resolution harus 1k atau 2k" });
     }
 
-    const { buffer, mime } = await generateCloudflareImage(prompt, {
+    const { buffer, mime } = await generatePixazoImage(prompt, {
       aspect_ratio: aspectRatio,
       quality,
-      resolution
+      resolution,
+      steps
     });
 
     res.statusCode = 200;
     res.setHeader("Content-Type", mime);
     res.setHeader("Content-Length", String(buffer.length));
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("X-Image-Model", "xai/grok-imagine-image-2.0");
+    res.setHeader("X-Image-Model", "flux-1-schnell (Pixazo)");
     return res.end(buffer);
   } catch (e) {
     console.error("IMAGE GENERATION ERROR:", e);

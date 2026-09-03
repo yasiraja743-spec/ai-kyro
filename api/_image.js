@@ -1,10 +1,10 @@
 // Shared image helpers for ONYX AI.
-// Image generation uses Cloudflare Workers AI -> xai/grok-imagine-image-2.0.
-// Cloudflare credentials are read ONLY from Vercel/server environment variables.
+// Image generation uses Pixazo REST API -> FLUX 1 Schnell (free preview).
+// Pixazo credentials are read ONLY from Vercel/server environment variables.
 
-const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
-const CLOUDFLARE_IMAGE_MODEL = "xai/grok-imagine-image-2.0";
+const PIXAZO_API_KEY = process.env.PIXAZO_API_KEY;
+const PIXAZO_IMAGE_ENDPOINT = "https://gateway.pixazo.ai/flux-1-schnell/v1/getData";
+const PIXAZO_IMAGE_MODEL = "flux-1-schnell";
 
 function imageError(message, status = 500, detail = "") {
   const err = new Error(message);
@@ -15,113 +15,114 @@ function imageError(message, status = 500, detail = "") {
 
 function parseDataImage(value) {
   if (typeof value !== "string") return null;
-  const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);
+  const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+)(?:;charset=[^;,]+)?;base64,(.+)$/s);
   if (!match) return null;
-  return {
-    buffer: Buffer.from(match[2], "base64"),
-    mime: match[1]
-  };
+  return { buffer: Buffer.from(match[2], "base64"), mime: match[1] };
 }
 
-export async function generateCloudflareImage(prompt, options = {}) {
-  if (!CLOUDFLARE_ACCOUNT_ID) {
-    throw imageError("CLOUDFLARE_ACCOUNT_ID belum dikonfigurasi di Vercel Environment Variables", 500);
+function pickOutputUrl(data) {
+  const candidates = [
+    data?.output,
+    data?.url,
+    data?.image,
+    data?.image_url,
+    data?.result?.output,
+    data?.result?.url,
+    data?.result?.image,
+    data?.result?.image_url,
+    data?.data?.output,
+    data?.data?.url,
+    data?.data?.image,
+    data?.data?.image_url
+  ];
+  for (const value of candidates) {
+    if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
   }
-  if (!CLOUDFLARE_API_TOKEN) {
-    throw imageError("CLOUDFLARE_API_TOKEN belum dikonfigurasi di Vercel Environment Variables", 500);
+  return null;
+}
+
+function parseAspectRatio(value) {
+  const match = String(value || "1:1").match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+  if (!match) return [512, 512];
+  const w = Number(match[1]);
+  const h = Number(match[2]);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return [512, 512];
+  const maxSide = 1024;
+  if (w >= h) return [maxSide, Math.max(256, Math.round(maxSide * h / w))];
+  return [Math.max(256, Math.round(maxSide * w / h)), maxSide];
+}
+
+export async function generatePixazoImage(prompt, options = {}) {
+  if (!PIXAZO_API_KEY) {
+    throw imageError("PIXAZO_API_KEY belum dikonfigurasi di Vercel Environment Variables", 500);
   }
+
+  const cleanPrompt = String(prompt || "").trim();
+  if (!cleanPrompt) throw imageError("prompt wajib diisi", 400);
+  if (cleanPrompt.length > 2048) throw imageError("prompt maksimal 2048 karakter", 400);
+
+  const stepsRaw = Number(options.steps ?? 4);
+  const num_steps = Number.isFinite(stepsRaw) ? Math.min(8, Math.max(1, Math.round(stepsRaw))) : 4;
+  const [width, height] = parseAspectRatio(options.aspect_ratio || "1:1");
 
   const input = {
-    prompt: String(prompt || "").trim(),
-    response_format: "url"
+    prompt: cleanPrompt,
+    num_steps,
+    seed: Math.floor(Math.random() * 2147483647),
+    width,
+    height
   };
 
-  // Keep these optional so the endpoint stays compatible with the old API.
-  if (options.aspect_ratio) input.aspect_ratio = options.aspect_ratio;
-  if (options.quality) input.quality = options.quality;
-  if (options.resolution) input.resolution = options.resolution;
-  if (options.user) input.user = String(options.user).slice(0, 128);
-
-  if (!input.prompt) throw imageError("prompt wajib diisi", 400);
-
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
 
   try {
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        },
-        body: JSON.stringify({
-          model: CLOUDFLARE_IMAGE_MODEL,
-          input
-        }),
-        signal: controller.signal
-      }
-    );
+    const response = await fetch(PIXAZO_IMAGE_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        "Ocp-Apim-Subscription-Key": PIXAZO_API_KEY,
+        Accept: "application/json"
+      },
+      body: JSON.stringify(input),
+      signal: controller.signal
+    });
 
     const raw = await response.text();
     let data;
     try {
       data = JSON.parse(raw);
     } catch {
-      throw imageError("Cloudflare mengembalikan response yang bukan JSON", 502, raw.slice(0, 2000));
+      throw imageError("Pixazo mengembalikan response yang bukan JSON", 502, raw.slice(0, 3000));
     }
 
-    if (!response.ok || data?.success === false) {
-      const detail = Array.isArray(data?.errors)
-        ? data.errors.map((e) => e?.message || JSON.stringify(e)).join("; ")
-        : data?.errors || data?.error || data?.message || raw;
-      throw imageError(`Cloudflare AI HTTP ${response.status}`, 502, String(detail).slice(0, 4000));
+    if (!response.ok) {
+      const detail = data?.message || data?.error || data?.detail || raw;
+      throw imageError(`Pixazo API HTTP ${response.status}`, response.status, String(detail).slice(0, 4000));
     }
 
-    const imageValue =
-      data?.result?.image ||
-      data?.result?.images?.[0]?.image ||
-      data?.result?.images?.[0] ||
-      data?.image ||
-      data?.result?.url ||
-      null;
+    const inline = parseDataImage(data?.output || data?.image || data?.result?.image);
+    if (inline) return inline;
 
-    const dataImage = parseDataImage(imageValue);
-    if (dataImage) return dataImage;
-
-    if (typeof imageValue !== "string") {
-      throw imageError("Cloudflare tidak mengembalikan hasil gambar", 502, JSON.stringify(data).slice(0, 5000));
+    const outputUrl = pickOutputUrl(data);
+    if (!outputUrl) {
+      throw imageError("Pixazo tidak mengembalikan URL hasil gambar", 502, JSON.stringify(data).slice(0, 5000));
     }
 
-    let resultUrl;
-    try {
-      resultUrl = new URL(imageValue);
-    } catch {
-      throw imageError("URL hasil gambar dari Cloudflare tidak valid", 502, imageValue.slice(0, 1000));
-    }
-
-    if (resultUrl.protocol !== "http:" && resultUrl.protocol !== "https:") {
-      throw imageError("URL hasil gambar dari Cloudflare harus http/https", 502);
-    }
-
-    const imageResponse = await fetch(resultUrl, {
-      headers: { Accept: "image/*,*/*" },
-      signal: AbortSignal.timeout(60000)
-    });
-
+    const imageResponse = await fetch(outputUrl, { headers: { Accept: "image/*,*/*" }, signal: controller.signal });
     if (!imageResponse.ok) {
-      throw imageError(`Gagal mengambil hasil gambar Cloudflare HTTP ${imageResponse.status}`, 502);
+      const errorText = await imageResponse.text().catch(() => "");
+      throw imageError("Gagal mengambil gambar hasil dari Pixazo", 502, errorText.slice(0, 2000));
     }
 
     return {
       buffer: Buffer.from(await imageResponse.arrayBuffer()),
-      mime: imageResponse.headers.get("content-type") || "image/jpeg"
+      mime: (imageResponse.headers.get("content-type") || "image/png").split(";")[0]
     };
   } catch (error) {
     if (error?.name === "AbortError" || error?.name === "TimeoutError") {
-      throw imageError("Cloudflare image generation timeout", 504);
+      throw imageError("Pixazo image generation timeout", 504);
     }
     throw error;
   } finally {
@@ -129,8 +130,9 @@ export async function generateCloudflareImage(prompt, options = {}) {
   }
 }
 
-// Backward-compatible name used by older code.
-export const generatePollinationsImage = generateCloudflareImage;
+// Backward-compatible exports used by older ONYX code.
+export const generateCloudflareImage = generatePixazoImage;
+export const generatePollinationsImage = generatePixazoImage;
 
 export async function editImageWithIkyyxd(imageUrl, prompt) {
   let parsedUrl;
@@ -178,10 +180,7 @@ export async function editImageWithIkyyxd(imageUrl, prompt) {
 
   const contentType = apiResponse.headers.get("content-type") || "";
   if (contentType.includes("image/")) {
-    return {
-      buffer: Buffer.from(await apiResponse.arrayBuffer()),
-      mime: contentType
-    };
+    return { buffer: Buffer.from(await apiResponse.arrayBuffer()), mime: contentType };
   }
 
   const raw = await apiResponse.text();
@@ -207,20 +206,10 @@ export async function editImageWithIkyyxd(imageUrl, prompt) {
 
   const inline = parseDataImage(resultUrl);
   if (inline) return inline;
-
-  if (!resultUrl || typeof resultUrl !== "string") {
-    throw imageError("URL hasil gambar tidak ditemukan", 502, raw.slice(0, 5000));
-  }
-
-  try { new URL(resultUrl); } catch {
-    throw imageError("URL hasil gambar tidak valid", 502, resultUrl);
-  }
+  if (!resultUrl || typeof resultUrl !== "string") throw imageError("URL hasil gambar tidak ditemukan", 502, raw.slice(0, 5000));
+  try { new URL(resultUrl); } catch { throw imageError("URL hasil gambar tidak valid", 502, resultUrl); }
 
   const imageResponse = await fetch(resultUrl, { headers: { Accept: "image/*,*/*" } });
   if (!imageResponse.ok) throw imageError("Gagal mengambil gambar hasil", 502, resultUrl);
-
-  return {
-    buffer: Buffer.from(await imageResponse.arrayBuffer()),
-    mime: imageResponse.headers.get("content-type") || "image/webp"
-  };
+  return { buffer: Buffer.from(await imageResponse.arrayBuffer()), mime: imageResponse.headers.get("content-type") || "image/webp" };
 }

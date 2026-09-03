@@ -6,10 +6,10 @@ export default async function handler(req, res) {
     service: "ONYX AI Vercel API",
     models: {
       chatVision: "mistralai/mistral-large-2512",
-      textToImage: "xai/grok-imagine-image-2.0",
+      textToImage: "flux-1-schnell (Pixazo)",
       imageEdit: "Ikyyxd nanobananav3"
     },
-    cloudflareConfigured: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN),
+    pixazoConfigured: Boolean(process.env.PIXAZO_API_KEY),
     xkiroConfigured: Boolean(process.env.XKIRO_API_KEY)
   });
 }
