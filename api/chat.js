@@ -11,7 +11,7 @@ const MODELS = {
   v2: {
     name: "ONYX AI v2.0",
     provider: "xkiro",
-    model: "qwen/qwen3.8-max"
+    model: "mistralai/mistral-large-2512"
   },
   v13: {
     name: "ONYX AI v1.3",
@@ -393,13 +393,13 @@ export default async function handler(req, res) {
     const stream = wantsStream(req, body);
     const fallback = imageUrl
       ? [
-          { provider: "openrouter", model: "openrouter/free" },
+          { provider: "xkiro", model: "mistralai/mistral-large-2512" },
           { provider: "openrouter", model: "google/gemma-3-27b-it:free" },
-          { provider: "groq", model: FALLBACK_GROQ_MODEL }
+          { provider: "openrouter", model: "openrouter/free" }
         ]
       : selected.provider === "xkiro"
         ? [
-            { provider: "xkiro", model: "qwen/qwen3.8-max" },
+            { provider: "xkiro", model: "mistralai/mistral-large-2512" },
             { provider: "openrouter", model: "openrouter/free" },
             { provider: "groq", model: FALLBACK_GROQ_MODEL }
           ]
