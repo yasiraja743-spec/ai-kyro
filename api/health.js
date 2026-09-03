@@ -5,10 +5,11 @@ export default async function handler(req, res) {
     status: true,
     service: "ONYX AI Vercel API",
     models: {
-      chatVision: "Qwen/Qwen2.5-VL-7B-Instruct",
-      textToImage: "Qwen/Qwen-Image-2512",
-      imageEdit: "Qwen/Qwen-Image-Edit"
+      chatVision: "mistralai/mistral-large-2512",
+      textToImage: "xai/grok-imagine-image-2.0",
+      imageEdit: "Ikyyxd nanobananav3"
     },
-    hfTokenConfigured: Boolean(process.env.HF_TOKEN)
+    cloudflareConfigured: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN),
+    xkiroConfigured: Boolean(process.env.XKIRO_API_KEY)
   });
 }
