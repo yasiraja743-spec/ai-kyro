@@ -17,7 +17,7 @@ Aplikasi web AI dengan chat lokal, generate image, dan photo editing — **100% 
 - **Riwayat Chat** — Sync ke Firebase Firestore (cross-device)
 - **Message Actions** — Copy, edit, regenerate jawaban
 - **Responsive UI** — Work di desktop & mobile
-- **Zero External API Dependency** — Semua berjalan lokal (kecuali Ollama server)
+- **Server-side API keys** — API key disimpan server-side melalui Vercel Environment Variables; jangan expose secret ke frontend
 
 ## 🚀 Quick Start
 

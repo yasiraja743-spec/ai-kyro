@@ -203,3 +203,37 @@ Jika ada error:
 4. Pastikan Ollama server running
 
 Good luck! 🎉
+
+## Cloudflare AI Image Generation (Vercel)
+
+Image generation ONYX AI memakai Cloudflare AI model `xai/grok-imagine-image-2.0`.
+Jangan taruh API token Cloudflare di `index.html` atau frontend. Simpan sebagai Environment Variables di project Vercel:
+
+```text
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+CLOUDFLARE_API_TOKEN=your_cloudflare_workers_ai_token
+XKIRO_API_KEY=your_xkiro_key
+```
+
+Untuk token Cloudflare Workers AI REST API, gunakan token yang memiliki permission Workers AI yang diperlukan. Endpoint server Vercel akan memanggil Cloudflare, lalu mengirim hasil gambar kembali ke browser.
+
+Setelah menambahkan/mengubah env var, lakukan **Redeploy** di Vercel agar function mendapatkan nilai baru.
+
+### Parameter image generation
+
+`POST /api/generate-image` menerima:
+
+```json
+{
+  "prompt": "A futuristic phoenix robot",
+  "aspect_ratio": "1:1",
+  "quality": "medium",
+  "resolution": "1k"
+}
+```
+
+`aspect_ratio` mengikuti pilihan yang didukung Grok Imagine Image 2.0. Endpoint mengembalikan file gambar langsung, jadi frontend lama tetap kompatibel.
+
+### IQC
+
+`/api/iqc` sekarang menggunakan SVG murni sehingga tidak membutuhkan native `@napi-rs/canvas` dan lebih aman untuk Vercel Serverless Functions. Browser tetap dapat menampilkan hasilnya sebagai image.
