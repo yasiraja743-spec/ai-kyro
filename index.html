@@ -469,7 +469,7 @@
   #mascotWidget.dragging{ cursor:grabbing; }
   #mascotWidget.dragging #mascotBtn{ cursor:grabbing; filter:brightness(1.12); }
   #mascotScene{
-    width:92px; height:92px; display:flex; align-items:flex-end; justify-content:center;
+    width:104px; height:104px; display:flex; align-items:flex-end; justify-content:center;
     position:relative;
   }
   #mascotShadow{
@@ -480,11 +480,11 @@
   }
   #mascotBtn{
     background:none; border:none; cursor:grab; padding:0; position:relative;
-    width:92px; height:92px; display:flex; align-items:center; justify-content:center;
+    width:104px; height:104px; display:flex; align-items:center; justify-content:center;
     touch-action:none;
   }
   #mascotBtn:hover{filter:brightness(1.08);}
-  #mascotCanvas{width:92px;height:92px;display:block;}
+  #mascotCanvas{width:104px;height:104px;display:block;}
   @keyframes mascotShadowPulse{
     0%,100%{transform:translateX(-50%) scaleX(1);opacity:.5}
     50%{transform:translateX(-50%) scaleX(.68);opacity:.28}
@@ -1820,7 +1820,11 @@ async function sendImageMessage(prompt, existingConvId = activeConvId, generated
     });
     if(!res.ok){
       let errMsg = `HTTP ${res.status}`;
-      try{ const errJson = await res.json(); errMsg = errJson.error || errMsg; } catch{}
+      try{
+        const errJson = await res.json();
+        errMsg = errJson.error || errMsg;
+        if(errJson.detail) errMsg += ' — ' + (typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail)).slice(0,300);
+      } catch{}
       throw new Error(errMsg);
     }
     const blob = await res.blob();
@@ -1925,7 +1929,11 @@ async function sendEditPhotoMessage(prompt, file){
     });
     if(!editRes.ok){
       let errMsg = `HTTP ${editRes.status}`;
-      try{ const errJson = await editRes.json(); errMsg = errJson.error || errMsg; } catch{}
+      try{
+        const errJson = await editRes.json();
+        errMsg = errJson.error || errMsg;
+        if(errJson.detail) errMsg += ' — ' + (typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail)).slice(0,300);
+      } catch{}
       throw new Error(errMsg);
     }
 
@@ -2071,7 +2079,7 @@ if(mascotWidget && mascotBtn && mascotPanel){
 (function initMascot3D(){
   if(!mascotCanvas || !window.THREE) return;
 
-  const SIZE = 92;
+  const SIZE = 104;
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
   const renderer = new THREE.WebGLRenderer({canvas:mascotCanvas,alpha:true,antialias:true});
   renderer.setPixelRatio(DPR);
@@ -2079,105 +2087,165 @@ if(mascotWidget && mascotBtn && mascotPanel){
   renderer.outputEncoding = THREE.sRGBEncoding;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32,1,.1,100);
-  camera.position.set(0,.35,5.7);
-  camera.lookAt(0,.08,0);
+  const camera = new THREE.PerspectiveCamera(30,1,.1,100);
+  camera.position.set(0,.32,6.1);
+  camera.lookAt(0,.06,0);
 
-  scene.add(new THREE.AmbientLight(0xffffff,.62));
-  const key = new THREE.DirectionalLight(0xffd6a0,1.15);
+  scene.add(new THREE.AmbientLight(0xffffff,.6));
+  const key = new THREE.DirectionalLight(0xffd6a0,1.2);
   key.position.set(2,3,4); scene.add(key);
-  const rim = new THREE.DirectionalLight(0xff5a36,.65);
+  const rim = new THREE.DirectionalLight(0xff5a36,.7);
   rim.position.set(-3,1,-2); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0x6ea8ff,.25);
+  fill.position.set(0,-2,3); scene.add(fill);
 
   const robot = new THREE.Group();
   scene.add(robot);
 
-  // Phoenix palette: obsidian metal + ember red + gold.
-  const bodyMat = new THREE.MeshStandardMaterial({color:0x171a24,metalness:.5,roughness:.34});
-  const goldMat = new THREE.MeshStandardMaterial({color:0xffb13b,metalness:.72,roughness:.25,emissive:0x3b1700,emissiveIntensity:.22});
-  const emberMat = new THREE.MeshStandardMaterial({color:0xff4b2b,metalness:.45,roughness:.3,emissive:0x4a0d02,emissiveIntensity:.5});
-  const darkMat = new THREE.MeshStandardMaterial({color:0x0c0e14,metalness:.45,roughness:.4});
+  // Palet: baja gelap gagah + api ember + aksen emas.
+  const armorMat = new THREE.MeshStandardMaterial({color:0x14161f,metalness:.55,roughness:.32});
+  const armorLightMat = new THREE.MeshStandardMaterial({color:0x1e212e,metalness:.5,roughness:.35});
+  const goldMat = new THREE.MeshStandardMaterial({color:0xffb13b,metalness:.75,roughness:.22,emissive:0x3b1700,emissiveIntensity:.25});
+  const emberMat = new THREE.MeshStandardMaterial({color:0xff4b2b,metalness:.4,roughness:.28,emissive:0x5a0f02,emissiveIntensity:.6});
+  const darkMat = new THREE.MeshStandardMaterial({color:0x08090d,metalness:.5,roughness:.4});
 
-  // Body
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(.65,.76,1.02,28),bodyMat);
-  body.position.y=-.72; robot.add(body);
-  const belt = new THREE.Mesh(new THREE.TorusGeometry(.67,.045,10,32),goldMat);
-  belt.rotation.x=Math.PI/2; belt.position.y=-.43; robot.add(belt);
-  const core = new THREE.Mesh(new THREE.SphereGeometry(.16,20,20),emberMat);
-  core.scale.set(1,.72,.5); core.position.set(0,-.62,.65); robot.add(core);
+  /* ---------- BADAN: dada bidang + bahu lebar bergaya armor (kesan cowok) ---------- */
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.58,.72,1.0,8),armorMat);
+  torso.position.y=-.7; torso.rotation.y=Math.PI/8; robot.add(torso);
 
-  // Small wings
-  const wingGeo = new THREE.SphereGeometry(.34,20,16);
-  const wingL = new THREE.Mesh(wingGeo,emberMat);
-  wingL.scale.set(.72,1.25,.2); wingL.position.set(-.69,-.52,-.02); wingL.rotation.z=-.38; robot.add(wingL);
-  const wingR = wingL.clone();
-  wingR.position.x=.69; wingR.rotation.z=.38; robot.add(wingR);
+  const chestPlate = new THREE.Mesh(new THREE.ConeGeometry(.34,.62,4),goldMat);
+  chestPlate.rotation.x=Math.PI; chestPlate.rotation.y=Math.PI/4;
+  chestPlate.scale.set(1,1,.35);
+  chestPlate.position.set(0,-.48,.52); robot.add(chestPlate);
 
-  // Arms
-  const armGeo = new THREE.CylinderGeometry(.1,.1,.45,12);
-  const armL = new THREE.Mesh(armGeo,bodyMat);
-  armL.position.set(-.79,-.55,.04); armL.rotation.z=.35; robot.add(armL);
-  const armR = armL.clone(); armR.position.x=.79; armR.rotation.z=-.35; robot.add(armR);
+  const beltRing = new THREE.Mesh(new THREE.TorusGeometry(.63,.05,8,8),goldMat);
+  beltRing.rotation.x=Math.PI/2; beltRing.position.y=-.4; robot.add(beltRing);
 
-  // Phoenix head: neck, face, beak and crest.
+  const core = new THREE.Mesh(new THREE.SphereGeometry(.13,16,16),emberMat);
+  core.scale.set(1,.7,.45); core.position.set(0,-.62,.68); robot.add(core);
+
+  // Pundak/bahu lebar bergaya armor — dobel fungsi: diam = pauldron gagah,
+  // pas di-drag cepat/senang = ngepak kayak sayap phoenix.
+  const shoulderGeo = new THREE.ConeGeometry(.32,.5,5);
+  const shoulderL = new THREE.Group();
+  const shL = new THREE.Mesh(shoulderGeo,armorLightMat);
+  shL.rotation.z=Math.PI/2.1; shL.rotation.x=.15;
+  shoulderL.add(shL);
+  const shLTrim = new THREE.Mesh(new THREE.TorusGeometry(.14,.025,6,10),emberMat);
+  shLTrim.rotation.y=Math.PI/2; shLTrim.position.set(-.08,0,0);
+  shoulderL.add(shLTrim);
+  shoulderL.position.set(-.86,-.42,0);
+  robot.add(shoulderL);
+  const shoulderR = shoulderL.clone(true);
+  shoulderR.position.x=.86; shoulderR.scale.x=-1;
+  robot.add(shoulderR);
+
+  // Lengan
+  const armGeo = new THREE.CylinderGeometry(.1,.09,.5,8);
+  const armL = new THREE.Mesh(armGeo,armorMat);
+  armL.position.set(-.82,-.72,.02); armL.rotation.z=.3; robot.add(armL);
+  const armR = armL.clone(); armR.position.x=.82; armR.rotation.z=-.3; robot.add(armR);
+  const fistGeo = new THREE.DodecahedronGeometry(.13,0);
+  const fistL = new THREE.Mesh(fistGeo,darkMat); fistL.position.set(-1.0,-.98,.02); robot.add(fistL);
+  const fistR = fistL.clone(); fistR.position.x=1.0; robot.add(fistR);
+
+  /* ---------- KEPALA PHOENIX: bentuk lebih tegas & bersih, gak berantakan ---------- */
   const headGroup = new THREE.Group();
-  headGroup.position.y=.48; robot.add(headGroup);
+  headGroup.position.y=.5; robot.add(headGroup);
 
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.27,.34,.42,20),darkMat);
-  neck.position.y=-.38; headGroup.add(neck);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.24,.32,.36,10),darkMat);
+  neck.position.y=-.36; headGroup.add(neck);
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.57,32,24),bodyMat);
-  head.scale.set(.98,1.08,.92); headGroup.add(head);
+  // Kepala: bentuk agak angular (segmen dikit) biar kesan robotic-gagah, bukan bulat lucu.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.55,10,8),armorMat);
+  head.scale.set(.94,1.02,.9); headGroup.add(head);
 
-  // Face plates
-  const cheekL = new THREE.Mesh(new THREE.SphereGeometry(.25,20,16),emberMat);
-  cheekL.scale.set(1,.72,.32); cheekL.position.set(-.29,-.08,.43); headGroup.add(cheekL);
-  const cheekR = cheekL.clone(); cheekR.position.x=.29; headGroup.add(cheekR);
+  // Alis tegas nempel di kepala (bikin ekspresi lebih "cowok"/serius)
+  const browGeo = new THREE.BoxGeometry(.24,.05,.09);
+  const browL = new THREE.Mesh(browGeo,darkMat);
+  browL.position.set(-.19,.14,.48); browL.rotation.z=.32; headGroup.add(browL);
+  const browR = browL.clone(); browR.position.x=.19; browR.rotation.z=-.32; headGroup.add(browR);
 
-  // Eyes
+  // Mata
   const eyeColor = new THREE.Color(mascotSettings.color || '#FF9A3D');
-  const eyeMat = new THREE.MeshStandardMaterial({color:eyeColor,emissive:eyeColor,emissiveIntensity:1.5,roughness:.22});
-  const eyeGeo = new THREE.SphereGeometry(.09,20,20);
-  const eyeL = new THREE.Mesh(eyeGeo,eyeMat); eyeL.position.set(-.21,.06,.54); headGroup.add(eyeL);
-  const eyeR = new THREE.Mesh(eyeGeo,eyeMat); eyeR.position.set(.21,.06,.54); headGroup.add(eyeR);
+  const eyeMat = new THREE.MeshStandardMaterial({color:eyeColor,emissive:eyeColor,emissiveIntensity:1.6,roughness:.2});
+  const eyeGeo = new THREE.SphereGeometry(.085,16,16);
+  const eyeL = new THREE.Mesh(eyeGeo,eyeMat); eyeL.position.set(-.2,.02,.5); headGroup.add(eyeL);
+  const eyeR = new THREE.Mesh(eyeGeo,eyeMat); eyeR.position.set(.2,.02,.5); headGroup.add(eyeR);
 
-  // Phoenix beak: upper and lower cones rotated forward.
-  const beakMat = new THREE.MeshStandardMaterial({color:0xffc857,metalness:.58,roughness:.24});
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(.16,.42,4),beakMat);
-  beak.rotation.x=Math.PI/2; beak.rotation.z=Math.PI/4;
-  beak.scale.set(1,.72,1); beak.position.set(0,-.08,.72); headGroup.add(beak);
+  // Paruh: satu bentuk aja (gak dobel cone biar gak norak), tegas & runcing.
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(.14,.46,4),goldMat);
+  beak.rotation.x=Math.PI/2.05; beak.scale.set(1,.62,1);
+  beak.position.set(0,-.1,.68); headGroup.add(beak);
 
-  const beakLower = new THREE.Mesh(new THREE.ConeGeometry(.11,.24,4),darkMat);
-  beakLower.rotation.x=Math.PI/2; beakLower.rotation.z=-Math.PI/4;
-  beakLower.position.set(0,-.17,.67); headGroup.add(beakLower);
-
-  // Crown / phoenix flame feathers.
-  const crestMat = new THREE.MeshStandardMaterial({color:0xff6b35,metalness:.5,roughness:.28,emissive:0x4a1000,emissiveIntensity:.35});
-  const crestGold = new THREE.MeshStandardMaterial({color:0xffd166,metalness:.6,roughness:.25,emissive:0x3d2500,emissiveIntensity:.25});
-  const featherGeo = new THREE.ConeGeometry(.12,.48,6);
+  // Mahkota api: 3 bilah tegas ngebentuk siluet phoenix yang jelas.
+  const crestGeo = new THREE.ConeGeometry(.11,.58,3);
   const crest=[];
-  [-.22,0,.22].forEach((x,i)=>{
-    const f=new THREE.Mesh(featherGeo,i===1?crestGold:crestMat);
-    f.position.set(x,.64-.05*Math.abs(x),.02);
-    f.rotation.z=(x===0?0:-x*1.7);
-    f.rotation.x=-.18;
-    f.scale.set(1,1+(i===1?.25:0),1);
+  [[-.26,-.28],[0,0],[.26,.28]].forEach(([x,tilt],i)=>{
+    const mat = i===1?goldMat:emberMat;
+    const f = new THREE.Mesh(crestGeo,mat);
+    f.position.set(x,.58-Math.abs(x)*.35,-.02+ (i===1?.05:0));
+    f.rotation.z = -tilt*1.6;
+    f.rotation.x = -.22;
+    f.scale.y = i===1?1.35:1.1;
     headGroup.add(f); crest.push(f);
   });
 
-  // Side flame feathers
-  const sideFeatherGeo=new THREE.ConeGeometry(.075,.34,6);
-  [-1,1].forEach(side=>{
-    const f=new THREE.Mesh(sideFeatherGeo,crestMat);
-    f.position.set(side*.49,.42,.02);
-    f.rotation.z=-side*.75; f.rotation.x=-.25;
-    headGroup.add(f);
-  });
+  /* ---------- Kacamata (emote "cool") ---------- */
+  const glasses = new THREE.Group();
+  const lensMat = new THREE.MeshStandardMaterial({color:0x0a0a10,metalness:.7,roughness:.15,emissive:0x1a1020,emissiveIntensity:.25});
+  const lensGeo = new THREE.SphereGeometry(.13,14,10);
+  const lensL = new THREE.Mesh(lensGeo,lensMat); lensL.scale.set(1,.82,.28); lensL.position.set(-.2,.03,.58);
+  const lensR = lensL.clone(); lensR.position.x=.2;
+  const bridge = new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.16,6),darkMat);
+  bridge.rotation.z=Math.PI/2; bridge.position.set(0,.05,.6);
+  glasses.add(lensL,lensR,bridge);
+  glasses.visible=false;
+  headGroup.add(glasses);
 
-  // Small gold facial brow plates
-  const browGeo=new THREE.BoxGeometry(.25,.055,.08);
-  const browL=new THREE.Mesh(browGeo,goldMat); browL.position.set(-.2,.2,.54); browL.rotation.z=-.18; headGroup.add(browL);
-  const browR=browL.clone(); browR.position.x=.2; browR.rotation.z=.18; headGroup.add(browR);
+  /* ---------- Partikel api: aura kecil yang naik dari mahkota ---------- */
+  const flameTex = (() => {
+    const c = document.createElement('canvas'); c.width=c.height=32;
+    const cx = c.getContext('2d');
+    const g = cx.createRadialGradient(16,16,0,16,16,16);
+    g.addColorStop(0,'rgba(255,220,150,1)');
+    g.addColorStop(.4,'rgba(255,120,40,.9)');
+    g.addColorStop(1,'rgba(255,60,20,0)');
+    cx.fillStyle=g; cx.fillRect(0,0,32,32);
+    return new THREE.CanvasTexture(c);
+  })();
+  const PARTICLE_COUNT = 14;
+  const particles = [];
+  const particleGroup = new THREE.Group();
+  headGroup.add(particleGroup);
+  function resetParticle(p){
+    p.life = 0;
+    p.maxLife = .8 + Math.random()*.9;
+    p.sprite.position.set((Math.random()-.5)*.32, .5+Math.random()*.1, (Math.random()-.5)*.12);
+    p.vy = .35 + Math.random()*.35;
+    p.vx = (Math.random()-.5)*.12;
+    const s = .09+Math.random()*.08;
+    p.sprite.scale.set(s,s,1);
+  }
+  for(let i=0;i<PARTICLE_COUNT;i++){
+    const mat = new THREE.SpriteMaterial({map:flameTex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
+    const sprite = new THREE.Sprite(mat);
+    const p = {sprite,life:0,maxLife:1,vy:.3,vx:0};
+    resetParticle(p);
+    p.life = Math.random()*p.maxLife; // offset awal biar gak nyala bareng semua
+    particles.push(p);
+    particleGroup.add(sprite);
+  }
+  function updateParticles(dt,intensity){
+    particles.forEach(p=>{
+      p.life += dt;
+      if(p.life >= p.maxLife){ resetParticle(p); }
+      const t = p.life/p.maxLife;
+      p.sprite.position.y += p.vy*dt*(0.6+intensity);
+      p.sprite.position.x += p.vx*dt;
+      p.sprite.material.opacity = Math.sin(t*Math.PI) * (0.55+intensity*.4);
+    });
+  }
 
   // State
   let motion='idle', emote=mascotSettings.emote||'default', t=0, blinkTimer=0;
@@ -2189,8 +2257,9 @@ if(mascotWidget && mascotBtn && mascotPanel){
   }
   function setEmote(name){
     emote=name;
-    if(name==='love') eyeMat.color.set(0xff78b7), eyeMat.emissive.set(0xff2d7d);
-    else eyeMat.color.set(mascotSettings.color||'#FF9A3D'), eyeMat.emissive.copy(eyeMat.color);
+    glasses.visible = (name==='cool');
+    if(name==='love'){ eyeMat.color.set(0xff78b7); eyeMat.emissive.set(0xff2d7d); }
+    else { eyeMat.color.set(mascotSettings.color||'#FF9A3D'); eyeMat.emissive.copy(eyeMat.color); }
   }
   function setMotion(name){ motion=name; if(name==='happy') burst=.9; }
   window.mascotSetColor=setColor;
@@ -2231,15 +2300,16 @@ if(mascotWidget && mascotBtn && mascotPanel){
       robot.rotation.y=THREE.MathUtils.lerp(robot.rotation.y,Math.sin(t*(motion==='reading'?2.1:.7))*(motion==='reading'?.32:.22),.08);
     }
 
-    // Expression
+    // Ekspresi — transisi mulus pakai lerp biar gak "patah"
     if(emote==='sleepy'){
       headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,.22+Math.sin(t*1.2)*.03,.12);
-      eyeL.scale.y=eyeR.scale.y=.25;
+      eyeL.scale.y=THREE.MathUtils.lerp(eyeL.scale.y,.25,.2); eyeR.scale.y=eyeL.scale.y;
     } else if(emote==='cool'){
       headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,-.05,.12);
-      eyeL.scale.y=eyeR.scale.y=.45;
+      eyeL.scale.y=THREE.MathUtils.lerp(eyeL.scale.y,.7,.2); eyeR.scale.y=eyeL.scale.y;
+      glasses.position.y = Math.sin(t*1.5)*.004; // goyang halus kayak beneran dipake
     } else if(emote==='love'){
-      headGroup.rotation.x=0;
+      headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,0,.12);
       const pulse=1+Math.sin(t*6)*.12; eyeL.scale.setScalar(pulse); eyeR.scale.setScalar(pulse);
     } else {
       headGroup.rotation.x=THREE.MathUtils.lerp(headGroup.rotation.x,0,.12);
@@ -2249,34 +2319,36 @@ if(mascotWidget && mascotBtn && mascotPanel){
         const b=ph<.12?1-ph/.12:(ph<.22?(ph-.12)/.1:1);
         eyeL.scale.y=eyeR.scale.y=Math.max(.12,b);
         if(blinkTimer>3.7) blinkTimer=0;
-      } else eyeL.scale.y=eyeR.scale.y=1;
+      } else { eyeL.scale.y=THREE.MathUtils.lerp(eyeL.scale.y,1,.3); eyeR.scale.y=eyeL.scale.y; }
     }
 
     // Reading scan / Phoenix alert look.
     if(motion==='reading'){
       const scan=Math.sin(t*6)*.05;
-      eyeL.position.x=-.21+scan; eyeR.position.x=.21+scan;
+      eyeL.position.x=-.2+scan; eyeR.position.x=.2+scan;
       headGroup.rotation.y=THREE.MathUtils.lerp(headGroup.rotation.y,Math.sin(t*3)*.1,.1);
     } else if(!dragging){
-      eyeL.position.x=-.21; eyeR.position.x=.21;
+      eyeL.position.x=-.2; eyeR.position.x=.2;
       headGroup.rotation.y=THREE.MathUtils.lerp(headGroup.rotation.y,0,.1);
     }
 
-    // Drag animation: wing flap + feather/crest bounce + directional lean.
-    const flap=dragging?Math.sin(t*18)*.42:Math.sin(t*2.1)*.035;
-    wingL.rotation.y=flap; wingR.rotation.y=-flap;
-    wingL.rotation.z=-.38-flap*.25; wingR.rotation.z=.38+flap*.25;
-    crest.forEach((f,i)=>{ f.rotation.x=-.18+Math.sin(t*10+i)*.08+(dragging?.08:0); });
+    // Bahu ngepak kayak sayap pas ditarik cepat / lagi senang.
+    const flap=dragging?Math.sin(t*18)*.5:(burst>0?Math.sin(t*22)*.6:Math.sin(t*2.1)*.05);
+    shoulderL.rotation.z=flap*.3; shoulderR.rotation.z=-flap*.3;
+    crest.forEach((f,i)=>{ f.rotation.x=-.22+Math.sin(t*9+i*1.3)*.09+(dragging?.1:0); });
 
-    // Directional thrust effect.
+    // Dorongan arah + intensitas api pas drag cepat.
+    let fireIntensity = burst>0 ? .9 : 0;
     if(dragging){
       const thrust=Math.min(1,Math.hypot(dragVelocity.x,dragVelocity.y)/25);
       robot.position.x=THREE.MathUtils.lerp(robot.position.x,dragVelocity.x*.002,.12);
       core.scale.setScalar(1+thrust*.18+Math.sin(t*15)*.04);
+      fireIntensity = Math.max(fireIntensity, thrust);
     } else {
       robot.position.x=THREE.MathUtils.lerp(robot.position.x,0,.12);
       core.scale.setScalar(1+Math.sin(t*4)*.04);
     }
+    updateParticles(dt, fireIntensity);
 
     // Happy burst.
     if(motion==='happy'){ motion='happy-playing'; burst=.9; }
@@ -2288,14 +2360,14 @@ if(mascotWidget && mascotBtn && mascotPanel){
       if(burst<=0){motion='idle';robot.scale.setScalar(1);}
     } else if(!dragging) robot.scale.setScalar(1);
 
-    // Direction label is reflected in subtle head pose.
+    // Arah drag tercermin di kemiringan kepala.
     if(dragging && dragDir!=='idle'){
       const lean={left:-.16,right:.16,'up-left':-.1,'up-right':.1,'down-left':-.1,'down-right':.1}[dragDir]||0;
       headGroup.rotation.z=THREE.MathUtils.lerp(headGroup.rotation.z,lean,.15);
     } else headGroup.rotation.z=THREE.MathUtils.lerp(headGroup.rotation.z,0,.1);
 
-    armL.rotation.z=.35+Math.sin(t*bobSpeed)*.08;
-    armR.rotation.z=-.35-Math.sin(t*bobSpeed)*.08;
+    armL.rotation.z=.3+Math.sin(t*bobSpeed)*.08;
+    armR.rotation.z=-.3-Math.sin(t*bobSpeed)*.08;
     renderer.render(scene,camera);
   }
 
@@ -2364,7 +2436,6 @@ if(mascotWidget && mascotBtn && mascotPanel){
     if(wasMoved && speed>1.2){
       const lastDir=dragDir;
       motion='drag-release';
-      // Smooth release: keep the last directional pose for a moment, then idle.
       setTimeout(()=>{if(!mascotWidget.classList.contains('dragging')){motion='idle';dragDir=lastDir;}},260);
     } else motion='idle';
     dragVelocity.x*=.35; dragVelocity.y*=.35;
@@ -2375,7 +2446,6 @@ if(mascotWidget && mascotBtn && mascotPanel){
   mascotBtn.addEventListener('pointerup',endDrag);
   mascotBtn.addEventListener('pointercancel',endDrag);
   mascotBtn.addEventListener('click',e=>{
-    // A drag should never open the settings panel.
     if(suppressClick){e.preventDefault();e.stopPropagation();suppressClick=false;return;}
   },true);
   window.addEventListener('resize',()=>{ if(mascotWidget.style.left) keepInViewport(); });

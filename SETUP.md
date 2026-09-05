@@ -206,12 +206,12 @@ Good luck! 🎉
 
 ## Cloudflare AI Image Generation (Vercel)
 
-Image generation ONYX AI memakai Cloudflare AI model `xai/grok-imagine-image-2.0`.
+Image generation ONYX AI memakai Cloudflare AI model `flux-1-schnell`.
 Jangan taruh API token Cloudflare di `index.html` atau frontend. Simpan sebagai Environment Variables di project Vercel:
 
 ```text
-CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
-CLOUDFLARE_API_TOKEN=your_cloudflare_workers_ai_token
+PIXAZO_API_KEY=your_cloudflare_account_id
+PIXAZO_API_KEY=your_cloudflare_workers_ai_token
 XKIRO_API_KEY=your_xkiro_key
 ```
 
@@ -232,7 +232,7 @@ Setelah menambahkan/mengubah env var, lakukan **Redeploy** di Vercel agar functi
 }
 ```
 
-`aspect_ratio` mengikuti pilihan yang didukung Grok Imagine Image 2.0. Endpoint mengembalikan file gambar langsung, jadi frontend lama tetap kompatibel.
+`aspect_ratio` tetap diterima untuk kompatibilitas frontend lama, tetapi FLUX.1 [schnell] memakai prompt dan steps. Endpoint mengembalikan file gambar langsung, jadi frontend lama tetap kompatibel.
 
 ### IQC
 
