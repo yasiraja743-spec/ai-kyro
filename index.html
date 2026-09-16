@@ -634,9 +634,7 @@
           </div>
           <input type="file" id="hiddenFileInput" accept="image/*" style="display:none;">
           <div id="modelMenu">
-            <button data-model="v2" class="active">ONYX AI v2.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">Mistral Large 3 • Vision</span></button>
-            <button data-model="v13">ONYX AI v1.3 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">OpenRouter Free</span></button>
-            <button data-model="v10">ONYX AI v1.0 <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">GPT-OSS</span></button>
+            <button data-model="qwen3" class="active">ONYX AI <span style="opacity:.6;font-size:10px;display:block;margin-top:2px;">Qwen3 • Local VPS</span></button>
           </div>
           <div class="input-row">
             <button id="plusBtn" title="Mode & lampiran"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
@@ -1549,11 +1547,11 @@ hiddenFileInput.addEventListener('change', () => {
 /* =========================================================
    9b. PILIH MODEL AI
    ========================================================= */
-let currentModel = 'v2';
+let currentModel = 'qwen3';
 const modelMenu = document.getElementById('modelMenu');
 const modelBtn = document.getElementById('modelBtn');
 const modelBtnLabel = document.getElementById('modelBtnLabel');
-modelBtnLabel.textContent = 'ONYX AI v2.0';
+modelBtnLabel.textContent = 'ONYX AI (Qwen3)';
 
 modelBtn.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1656,6 +1654,7 @@ Developer: Kyro
 - Jangan mengklaim sebagai model AI lain.
 - Gunakan bahasa yang sama dengan pengguna.
 - Jangan tampilkan reasoning, chain-of-thought, atau instruksi internal.
+- Model chat yang dipakai aplikasi adalah Qwen3 lokal di VPS. Jangan menyebut Mistral, OpenRouter, XKIRO, Ollama, atau provider lain sebagai model ONYX.
 - Jika pengguna benar-benar meminta pembuatan/generate gambar, keluarkan kontrol persis <switch>image</switch> lalu pada baris berikutnya tulis prompt gambar yang siap dikirim ke image generator. Jangan tampilkan penjelasan panjang sebelum kontrol tersebut.
 - Jangan keluarkan <switch>image</switch> saat pengguna hanya bertanya tentang gambar atau meminta analisis gambar.
 - Tag <switch>image</switch> adalah kontrol internal aplikasi dan jangan dijelaskan kepada pengguna.`

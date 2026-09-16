@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.11",
-    "openai": "^5.0.0"
+    "openai": "^5.0.0",
+    "firebase-admin": "^13.4.0"
   },
   "type": "module"
 }

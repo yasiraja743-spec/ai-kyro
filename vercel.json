@@ -16,6 +16,14 @@
     {
       "source": "/api-docs",
       "destination": "/api-docs.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/profile.html"
     }
   ]
 }

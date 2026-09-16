@@ -1,239 +1,167 @@
-# 🚀 Nova AI Full-Stack Setup Guide
+# ONYX AI — Single VPS + Vercel
 
-## Struktur Project
-```
-nova-full-stack/
-├── frontend/           # React/HTML frontend
-│   └── index.html      # Main app
-├── backend/            # Python Flask backend
-│   ├── app.py          # Main backend
-│   ├── requirements.txt # Dependencies
-│   ├── Dockerfile      # Container config
-│   └── .env.example    # Environment template
-├── .gitignore          # Git ignore
-└── SETUP.md            # This file
-```
-
-## 🔧 Setup Lokal (Local Development)
-
-### Kebutuhan:
-- Python 3.11+
-- Ollama (download dari ollama.ai)
-- Git
-
-### Langkah 1: Setup Backend
-
-```bash
-# 1. Masuk folder backend
-cd backend
-
-# 2. Buat virtual environment
-python -m venv venv
-
-# Linux/Mac:
-source venv/bin/activate
-
-# Windows:
-venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Copy .env.example ke .env
-cp .env.example .env
-
-# 5. Download Ollama model
-ollama pull mistral
-
-# 6. Jalankan Ollama (di terminal terpisah)
-ollama serve
-
-# 7. Jalankan backend (di terminal lain)
-python app.py
-# Backend running di http://localhost:5000
-```
-
-### Langkah 2: Frontend (Local Testing)
-
-```bash
-# Buka file dengan simple HTTP server
-cd ../frontend
-
-# Python 3:
-python -m http.server 8000
-
-# Buka browser: http://localhost:8000
-```
-
-## ☁️ Deploy ke Render (Production)
-
-### Kebutuhan:
-- GitHub repo dengan folder ini
-- Render.com account (free tier OK)
-- Ollama server running somewhere (kita set up di step 4)
-
-### Langkah 1: Push ke GitHub
-
-```bash
-# Dari root project folder
-git init
-git add .
-git commit -m "Initial Nova AI full-stack"
-git branch -M main
-git remote add origin https://github.com/USERNAME/nova-full-stack.git
-git push -u origin main
-```
-
-### Langkah 2: Deploy Backend ke Render
-
-1. Pergi ke **render.com** → **New +** → **Web Service**
-2. Connect GitHub repository kamu
-3. Setup berikut:
-   - **Name**: `nova-ai-backend`
-   - **Branch**: `main`
-   - **Root Directory**: `backend`
-   - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
-   - **Plan**: Free (atau Starter kalau mau performance lebih baik)
-
-4. Add Environment Variables:
-   ```
-   OLLAMA_API=http://your-ollama-server.com:11434
-   OLLAMA_MODEL=mistral
-   FLASK_ENV=production
-   ```
-
-5. Deploy & tunggu (~2-3 menit)
-
-### Langkah 3: Deploy Frontend ke Vercel
-
-1. Pergi ke **vercel.com** → **New Project**
-2. Import GitHub repository
-3. Setup:
-   - **Root Directory**: `frontend`
-   - **Framework**: `Other`
-   - **Build Command**: (skip, leave empty)
-   - **Output Directory**: (skip)
-
-4. Add Environment Variables:
-   ```
-   REACT_APP_BACKEND_URL=https://nova-ai-backend.onrender.com
-   ```
-   (Ganti dengan URL Render backend kamu)
-
-5. Deploy
-
-### Langkah 4: Setup Ollama Server (Optional tapi Recommended)
-
-Kalau nggak punya Ollama server running, Render backend bakal error.
-
-**Option A: Ollama di VPS/Laptop lokal (Simple)**
-- Pasang Ollama di mesin
-- `ollama serve` (jangan tutup terminal ini)
-- Update OLLAMA_API di Render env vars ke IP mesin kamu
-
-**Option B: Railway Ollama (Advanced)**
-- Deploy Ollama di Railway.app
-- Set OLLAMA_API ke Railway URL
-
-**Option C: Run lokal cuma untuk testing**
-- Backend di Render nggak bisa connect ke localhost Ollama
-- Untuk development, jalankan semuanya lokal (localhost:5000 + localhost:8000)
-
-## 📝 Catatan Penting
-
-### Render Free Tier Limitations:
-- **Auto-sleep**: Jika nggak ada request selama 15 menit, service sleep
-- **Cold start**: Pertama request bisa 20-30 detik
-- **Timeout**: Max request 30 detik
-- **Connections**: Ollama inference bisa 20-60 detik → bisa timeout
-
-**Solusi**: Upgrade ke Paid atau run backend locally.
-
-### Ollama Model Size:
-- **mistral**: ~4GB (cepat, cukup bagus)
-- **llama2**: ~3.8GB (lebih ringan)
-- **neural-chat**: ~3.8GB (optimized)
-
-Ganti di `OLLAMA_MODEL` env var.
-
-### Photo Edit (OpenCV):
-- Works offline (nggak perlu API eksternal)
-- Operations: enhance, blur, sharpen, grayscale
-- Max image size: 1024x1024 (optimize buat memory)
-
-### Chat Response Time:
-- Local (GPU): 2-5 detik
-- Local (CPU): 5-20 detik
-- Render free tier: 20-60 detik (cold start) + 10-30 detik inference
-
-## 🐛 Troubleshooting
-
-### Backend error "Ollama belum siap"
-→ Check Ollama server running (`ollama serve`)
-→ Check OLLAMA_API correct di env variables
-
-### Frontend error "Backend error: HTTP 503"
-→ Backend loading, tunggu 30 detik
-→ Check Render health endpoint: `https://nova-ai-backend.onrender.com/health`
-
-### Timeout error (30 detik)
-→ Normal untuk free tier dengan Ollama inference
-→ Buat production, upgrade Render ke Starter tier ($7/month)
-
-### CORS error
-→ Flask-CORS sudah setup di backend
-→ Check frontend BACKEND_URL di env variables
-
-## 🚀 Next Steps
-
-1. **Local testing dulu** (jalankan backend + frontend lokal)
-2. **Setup Ollama server** (lokal atau VPS)
-3. **Deploy backend** ke Render
-4. **Deploy frontend** ke Vercel
-5. **Test full flow** dari Vercel frontend ke Render backend ke Ollama
-
-## 📞 Support
-
-Jika ada error:
-1. Check `/health` endpoint
-2. See backend logs di Render dashboard
-3. Check browser console (F12)
-4. Pastikan Ollama server running
-
-Good luck! 🎉
-
-## Cloudflare AI Image Generation (Vercel)
-
-Image generation ONYX AI memakai Cloudflare AI model `flux-1-schnell`.
-Jangan taruh API token Cloudflare di `index.html` atau frontend. Simpan sebagai Environment Variables di project Vercel:
+Arsitektur sekarang memakai **1 VPS saja** untuk AI/gateway. Vercel hanya menjadi frontend + serverless proxy.
 
 ```text
-PIXAZO_API_KEY=your_cloudflare_account_id
-PIXAZO_API_KEY=your_cloudflare_workers_ai_token
-XKIRO_API_KEY=your_xkiro_key
+Vercel
+  | HTTPS
+  v
+ONE VPS
+  |-- ONYX Gateway :8080
+  |-- Qwen llama-server :8000
+  |-- Image adapter :8188 (opsional)
+  |-- Search provider key (opsional)
 ```
 
-Untuk token Cloudflare Workers AI REST API, gunakan token yang memiliki permission Workers AI yang diperlukan. Endpoint server Vercel akan memanggil Cloudflare, lalu mengirim hasil gambar kembali ke browser.
+## 1. Jalankan Qwen di VPS
 
-Setelah menambahkan/mengubah env var, lakukan **Redeploy** di Vercel agar function mendapatkan nilai baru.
+Contoh Qwen/llama-server CPU:
 
-### Parameter image generation
-
-`POST /api/generate-image` menerima:
-
-```json
-{
-  "prompt": "A futuristic phoenix robot",
-  "aspect_ratio": "1:1",
-  "quality": "medium",
-  "resolution": "1k"
-}
+```bash
+/opt/llama.cpp/build-cpu/bin/llama-server \
+  -m /opt/models/qwen3/Qwen3-30B-A3B-Q4_K_M.gguf \
+  --host 127.0.0.1 \
+  --port 8000 \
+  -t 48 \
+  -c 8192
 ```
 
-`aspect_ratio` tetap diterima untuk kompatibilitas frontend lama, tetapi FLUX.1 [schnell] memakai prompt dan steps. Endpoint mengembalikan file gambar langsung, jadi frontend lama tetap kompatibel.
+Pastikan dulu:
 
-### IQC
+```bash
+curl http://127.0.0.1:8000/v1/models
+```
 
-`/api/iqc` sekarang menggunakan SVG murni sehingga tidak membutuhkan native `@napi-rs/canvas` dan lebih aman untuk Vercel Serverless Functions. Browser tetap dapat menampilkan hasilnya sebagai image.
+## 2. Jalankan gateway di VPS yang sama
+
+```bash
+cd gateway
+npm install
+cp .env.example .env
+nano .env
+```
+
+Isi `.env`:
+
+```text
+PORT=8080
+GATEWAY_SECRET=BUAT_SECRET_RANDOM
+CHAT_URL=http://127.0.0.1:8000/v1/chat/completions
+IMAGE_URL=http://127.0.0.1:8188/generate
+EDIT_URL=http://127.0.0.1:8188/edit
+TAVILY_API_KEY=
+```
+
+Buat secret random dengan:
+
+```bash
+openssl rand -hex 32
+```
+
+Lalu jalankan:
+
+```bash
+npm start
+```
+
+Test:
+
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+## 3. Agar Vercel bisa mengakses VPS
+
+`ONYX_GATEWAY_URL` **harus berupa URL HTTPS publik** yang mengarah ke port gateway `8080`. Jangan isi `127.0.0.1`, `localhost`, atau IP private.
+
+Contoh:
+
+```text
+https://ai.domain-kamu.com
+```
+
+Jika VPS NAT tidak punya inbound port publik, gunakan tunnel/reverse proxy yang bisa diakses dari internet.
+
+## 4. Vercel Environment Variables
+
+Di Vercel buka:
+
+**Project → Settings → Environment Variables**
+
+Tambahkan:
+
+```text
+ONYX_GATEWAY_URL=https://ai.domain-kamu.com
+ONYX_GATEWAY_SECRET=SECRET_YANG_SAMA_DENGAN_GATEWAY
+```
+
+Pilih environment yang dipakai (`Production`, dan `Preview` jika diperlukan), lalu **Redeploy**.
+
+Jangan masukkan URL `CHAT_URL` atau model Qwen ke Vercel. Itu hanya berjalan di VPS.
+
+## 5. Port
+
+Yang boleh publik:
+
+```text
+8080  ONYX Gateway
+```
+
+Yang sebaiknya private:
+
+```text
+8000  Qwen
+8188  Image adapter
+```
+
+## 6. Catatan image/search/file
+
+Gateway single-VPS sudah menyiapkan route:
+
+- `/v1/chat/completions` → Qwen lokal
+- `/v1/images/generations` → image adapter lokal
+- `/v1/images/edits` → image-edit adapter lokal
+- `/v1/search` → Tavily jika `TAVILY_API_KEY` diisi
+
+File/ZIP yang dibuat oleh aplikasi dapat tetap diproses dan dikirim oleh frontend/backend Vercel. Qwen sendiri tidak perlu menjadi server file.
+
+## 7. API key + pembayaran otomatis (Pakasir)
+
+Gateway sekarang punya sistem credit/API key berbasis SQLite dan QRIS Pakasir.
+
+Tambahkan di `gateway/.env`:
+
+```text
+MIDTRANS_SERVER_KEY=ISI_SERVER_KEY_MIDTRANS
+MIDTRANS_BASE_URL=https://api.midtrans.com
+COST_CHAT=1
+COST_IMAGE=5
+COST_EDIT=5
+COST_SEARCH=1
+DATA_DIR=./data
+```
+
+Install dependency:
+
+```bash
+cd gateway
+npm install
+```
+
+Endpoint internal Vercel:
+
+```text
+POST /api/payment
+```
+
+`action=key` membuat API key, `action=balance` mengecek credit, dan `action=create` membuat pembayaran QRIS.
+
+Webhook Pakasir harus diarahkan ke:
+
+```text
+https://DOMAIN-GATEWAY/v1/payment/webhook
+```
+
+Webhook diverifikasi memakai `signature_key`. Setelah status settlement/capture valid, credit otomatis masuk ke akun customer.
+
+> Untuk akun merchant/payment gateway yang mensyaratkan verifikasi identitas atau usia, gunakan akun merchant milik orang dewasa/wali yang memang berwenang. Jangan bypass verifikasi provider.
