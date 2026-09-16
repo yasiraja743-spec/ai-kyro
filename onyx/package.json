@@ -1,0 +1,25 @@
+{
+  "name": "onyx-ai-frontend",
+  "version": "1.0.0",
+  "description": "ONYX AI Frontend - Chat, Image Gen, Photo Editing",
+  "private": true,
+  "scripts": {
+    "dev": "python -m http.server 3000"
+  },
+  "keywords": [
+    "ai",
+    "chat",
+    "image",
+    "photo-edit"
+  ],
+  "author": "Kyro",
+  "license": "MIT",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@huggingface/inference": "^4.13.11",
+    "openai": "^5.0.0"
+  },
+  "type": "module"
+}

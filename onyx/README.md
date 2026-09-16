@@ -1,0 +1,138 @@
+# 🤖 Nova AI - Full Stack Version
+
+Aplikasi web AI dengan chat lokal, generate image, dan photo editing — **100% independent dari REST API eksternal**.
+
+## ✨ Fitur
+
+## 🐦‍🔥 ONYX Phoenix Bot & Vision
+
+- **Vision** — ONYX AI v2.0 sekarang menggunakan `mistralai/mistral-large-2512` melalui XKIRO, sehingga dapat menerima input teks + gambar.
+- **Phoenix mascot** — Robot 3D memakai kepala bergaya Phoenix, aksen api/emas, ekspresi dan animasi halus.
+- **Free positioning** — Mascot dapat di-drag ke posisi mana pun di layar; posisi disimpan di `localStorage`.
+- **8-direction drag animation** — Gerakan kiri, kanan, atas, bawah, serta empat diagonal (`up-left`, `up-right`, `down-left`, `down-right`) memengaruhi pose, kemiringan, sayap, dan efek gerak.
+
+
+- **Chat AI Lokal** — Powered by Ollama (mistral, llama2, neural-chat)
+- **Photo Editing** — Enhance, blur, sharpen, grayscale dengan OpenCV
+- **Riwayat Chat** — Sync ke Firebase Firestore (cross-device)
+- **Message Actions** — Copy, edit, regenerate jawaban
+- **Responsive UI** — Work di desktop & mobile
+- **Server-side API keys** — API key disimpan server-side melalui Vercel Environment Variables; jangan expose secret ke frontend
+
+## 🚀 Quick Start
+
+### Local Development
+```bash
+# 1. Backend
+cd backend
+pip install -r requirements.txt
+python app.py
+
+# 2. Frontend (di terminal lain)
+cd frontend
+python -m http.server 8000
+# Buka http://localhost:8000
+```
+
+### Production (Render + Vercel)
+Lihat [SETUP.md](./SETUP.md) untuk detailed guide.
+
+## 📋 Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  Frontend (Vercel)                      │
+│  - index.html (Vanilla JS)              │
+│  - Firebase Auth & Firestore            │
+│  - Message UI dengan actions            │
+└────────────┬────────────────────────────┘
+             │ HTTPS
+┌────────────▼────────────────────────────┐
+│  Backend (Render)                       │
+│  - Flask API                            │
+│  - OpenCV photo editing                 │
+│  - Ollama client                        │
+└────────────┬────────────────────────────┘
+             │ HTTP
+┌────────────▼────────────────────────────┐
+│  Ollama Server (VPS/Laptop)             │
+│  - Local AI models (mistral, llama2)    │
+│  - LLM inference                        │
+└─────────────────────────────────────────┘
+```
+
+## 🔧 Requirements
+
+- **Local dev**: Python 3.11+, Ollama
+- **Production backend**: Docker, Render account
+- **Production frontend**: Vercel account
+- **AI Server**: Ollama running somewhere (local/VPS)
+
+## 📁 Structure
+
+```
+nova-full-stack/
+├── frontend/
+│   └── index.html          # Main app
+├── backend/
+│   ├── app.py              # Flask API
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── .env.example
+├── SETUP.md                # Detailed setup guide
+├── README.md               # This file
+└── .gitignore
+```
+
+## ⚙️ Configuration
+
+### Backend (.env)
+```
+PORT=5000
+OLLAMA_API=http://localhost:11434
+OLLAMA_MODEL=mistral
+FLASK_ENV=production
+```
+
+### Frontend (index.html)
+```javascript
+const BACKEND_URL = 'http://localhost:5000';  // Local
+// or
+const BACKEND_URL = 'https://nova-ai-backend.onrender.com';  // Production
+```
+
+## 🌐 Deployment
+
+1. **Backend** → Render.com (free tier ok)
+2. **Frontend** → Vercel.com (free tier ok)
+3. **Ollama** → Your VPS/Laptop/Server
+
+[Full guide di SETUP.md](./SETUP.md)
+
+## ⚠️ Important Notes
+
+- **Ollama Server Required**: Backend butuh Ollama running di background
+- **Render Free Tier**: Auto-sleep 15 min, cold start 20-30 detik
+- **Chat Response Time**: 10-60 detik (tergantung model & CPU)
+- **No External APIs**: Semua local (kecuali Firebase untuk auth/storage)
+
+## 📝 License
+
+Bikin apa aja, gunakan semestinya.
+
+## 🎉 Credits
+
+Built with ❤️ by Kyro
+
+---
+
+**Next: [SETUP.md](./SETUP.md)** untuk langkah-langkah deploy lengkap.
+
+
+## Vercel + Render
+- Vercel Root Directory: `frontend`
+- Framework Preset: `Other`
+- Build/Install/Development Command overrides: OFF
+- `frontend/vercel.json` proxies `/api-backend/*` to `https://nova-ai-backend.onrender.com/*`.
+- If your Render backend URL is different, change the `destination` in `frontend/vercel.json`.
+- The backend needs a reachable Ollama server via the `OLLAMA_API` environment variable. Do not use `localhost` on Render unless Ollama runs inside the same Render service.
