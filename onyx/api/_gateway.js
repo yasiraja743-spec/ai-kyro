@@ -25,4 +25,3 @@ export async function readError(response) {
     return text || `HTTP ${response.status}`;
   }
 }
-  
