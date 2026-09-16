@@ -23,7 +23,10 @@ export default (req, res) => {
       generate: '/api/generate-image',
       iqc: '/api/iqc',
       health: '/api/health',
-      docs: '/api/docs'
+      docs: '/api/docs',
+      profile: '/profile',
+      profile_api: '/api/profile',
+      payment: '/api/payment'
     },
     docs_url: '/api/docs'
   };

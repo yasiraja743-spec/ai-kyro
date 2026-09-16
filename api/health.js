@@ -1,15 +1,9 @@
-import { json } from "./_hf.js";
-
-export default async function handler(req, res) {
-  return json(res, 200, {
-    status: true,
-    service: "ONYX AI Vercel API",
-    models: {
-      chatVision: "mistralai/mistral-large-2512",
-      textToImage: "flux-1-schnell (Pixazo)",
-      imageEdit: "Ikyyxd nanobananav3"
-    },
-    pixazoConfigured: Boolean(process.env.PIXAZO_API_KEY),
-    xkiroConfigured: Boolean(process.env.XKIRO_API_KEY)
-  });
+import { gatewayFetch, readError } from './_gateway.js';
+export const maxDuration = 30;
+export default async function handler(req,res){
+  try{
+    const upstream=await gatewayFetch('/health',{method:'GET',headers:{Accept:'application/json'}});
+    const text=await upstream.text();
+    res.statusCode=upstream.status; res.setHeader('Content-Type','application/json; charset=utf-8'); res.end(text || JSON.stringify({status:false,error:await readError(upstream)}));
+  }catch(e){res.status(502).json({status:false,error:e.message||'Gateway unavailable'});}
 }
